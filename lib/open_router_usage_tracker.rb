@@ -1,24 +1,24 @@
 require "open_router_usage_tracker/version"
 require "open_router_usage_tracker/railtie"
-require "open_router_usage_tracker/configuration"
 require "open_router_usage_tracker/engine"
 
 module OpenRouterUsageTracker
   class << self
     attr_writer :configuration
-  end
 
-  # This is the method that provides access to the config object.
-  def self.configuration
-    @configuration ||= Configuration.new
-  end
+    def log(response:, user:)
+      attributes = {
+        model: response["model"],
+        prompt_tokens: response.dig("usage", "prompt_tokens"),
+        completion_tokens: response.dig("usage", "completion_tokens"),
+        total_tokens: response.dig("usage", "total_tokens"),
+        cost: response.dig("usage", "cost"),
+        request_id: response["id"],
+        raw_usage_response: response,
+        user: user
+      }
 
-  # This is the `configure` block that will be used in the initializer.
-  def self.configure
-    yield(configuration)
-  end
-
-  def log
-    puts "Hello World"
+      OpenRouterUsageTracker::UsageLog.create!(attributes)
+    end
   end
 end

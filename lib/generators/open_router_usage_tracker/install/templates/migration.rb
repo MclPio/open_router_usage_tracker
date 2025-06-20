@@ -6,7 +6,7 @@ class CreateOpenRouterUsageLogs < ActiveRecord::Migration[8.0]
       t.integer :completion_tokens, null: false
       t.integer :total_tokens, null: false
       t.decimal :cost, precision: 10, scale: 5, null: false
-      t.references :user, null: false, foreign_key: true
+      t.references :user, null: false, polymorphic: true
       t.string :request_id, null: false
 
       # Storing the raw API response is recommended for auditing and future-proofing.

@@ -3,7 +3,7 @@ module OpenRouterUsageTracker
   class UsageLog < ApplicationRecord
     self.table_name = "open_router_usage_logs"
 
-    belongs_to :user
+    belongs_to :user, polymorphic: true
 
     validates :model, presence: true
     validates :prompt_tokens, presence: true

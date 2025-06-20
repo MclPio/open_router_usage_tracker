@@ -13,8 +13,6 @@ module OpenRouterUsageTracker
 
     def create_files
       migration_template "migration.rb", "db/migrate/create_open_router_usage_logs.rb"
-
-      copy_file "initializer.rb", "config/initializers/open_router_usage_tracker.rb"
     end
   end
 end

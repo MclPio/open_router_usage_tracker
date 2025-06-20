@@ -13,13 +13,4 @@ class InstallGeneratorTest < Rails::Generators::TestCase
       assert_match "create_table :open_router_usage_logs", migration
     end
   end
-
-  test "generator creates an initializer" do
-    run_generator
-
-    assert_file "config/initializers/open_router_usage_tracker.rb" do |initializer|
-      assert_match "OpenRouterUsageTracker.configure do |config|", initializer
-      assert_match "config.user_foreign_key = :user_id", initializer
-    end
-  end
 end

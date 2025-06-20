@@ -17,19 +17,18 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_19_233146) do
     t.integer "completion_tokens", null: false
     t.integer "total_tokens", null: false
     t.decimal "cost", precision: 10, scale: 5, null: false
+    t.string "user_type", null: false
     t.integer "user_id", null: false
     t.string "request_id", null: false
     t.json "raw_usage_response", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["request_id"], name: "index_open_router_usage_logs_on_request_id", unique: true
-    t.index ["user_id"], name: "index_open_router_usage_logs_on_user_id"
+    t.index ["user_type", "user_id"], name: "index_open_router_usage_logs_on_user"
   end
 
   create_table "users", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
-
-  add_foreign_key "open_router_usage_logs", "users"
 end
