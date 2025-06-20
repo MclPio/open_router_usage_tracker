@@ -7,7 +7,7 @@ Gem::Specification.new do |spec|
   spec.email       = [ "mclpious@gmail.com" ]
   spec.homepage    = "https://github.com/MclPio/open_router_usage_tracker"
   spec.summary     = "Track API token usage and cost from OpenRouter"
-  spec.description = "This gem is your rocket launch to managing you web app's LLM usage and rate limiting users with built in methods!"
+  spec.description = "A simple Rails engine to log OpenRouter API usage and provide methods for tracking user consumption over time, enabling easy rate-limiting."
   spec.license     = "MIT"
 
   spec.metadata["homepage_uri"] = spec.homepage
