@@ -15,12 +15,12 @@ gem "open_router_usage_tracker"
 
 And then execute:
 ```bash
-$ bundle
+bundle
 ```
 
 Or install it yourself as:
 ```bash
-$ gem install open_router_usage_tracker
+gem install open_router_usage_tracker
 ```
 
 ## Setup
