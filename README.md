@@ -87,7 +87,7 @@ def check_usage_limit
 end
 ```
 
-The gem also provides `usage_in_last_24_hours` as a convenience method.
+The gem also provides `usage_in_last_24_hours` as a convenience method and you can always get all the data using `usage_logs`.
 
 ## Contributing
 Open an issue first.
