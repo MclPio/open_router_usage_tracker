@@ -8,6 +8,10 @@ class CreateOpenRouterUsageLogs < ActiveRecord::Migration[8.0]
       t.decimal :cost, precision: 10, scale: 5, null: false
       t.references :user, null: false, foreign_key: true
       t.string :request_id, null: false
+
+      # Storing the raw API response is recommended for auditing and future-proofing.
+      # If you are using PostgreSQL, you can change `t.json` to `t.jsonb` for
+      # better performance and indexing capabilities.
       t.json :raw_usage_response, null: false, default: {}
 
       t.timestamps
