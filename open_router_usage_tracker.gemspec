@@ -6,7 +6,7 @@ Gem::Specification.new do |spec|
   spec.authors     = [ "MclPio" ]
   spec.email       = [ "mclpious@gmail.com" ]
   spec.homepage    = "https://github.com/MclPio/open_router_usage_tracker"
-  spec.summary     = "Tracks yours AI token usage"
+  spec.summary     = "Track API token usage and cost from OpenRouter"
   spec.description = "This gem is your rocket launch to managing you web app's LLM usage and rate limiting users with built in methods!"
   spec.license     = "MIT"
 
@@ -15,8 +15,8 @@ Gem::Specification.new do |spec|
   spec.metadata["allowed_push_host"] = "TODO: Set to 'http://mygemserver.com'"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/MclPio/open_router_usage_tracker"
-  spec.metadata["changelog_uri"] = "TODO: Put your gem's CHANGELOG.md URL here."
+  spec.metadata["source_code_uri"] = spec.homepage
+  spec.metadata["changelog_uri"] = "#{spec.homepage}/blob/main/CHANGELOG.md"
 
   spec.files = Dir.chdir(File.expand_path(__dir__)) do
     Dir["{app,config,db,lib}/**/*", "MIT-LICENSE", "Rakefile", "README.md"]

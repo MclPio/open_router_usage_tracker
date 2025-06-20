@@ -23,8 +23,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_19_233146) do
     t.json "raw_usage_response", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["request_id"], name: "index_open_router_usage_logs_on_request_id", unique: true
-    t.index ["user_type", "user_id"], name: "index_open_router_usage_logs_on_user"
+    t.index [ "request_id" ], name: "index_open_router_usage_logs_on_request_id", unique: true
+    t.index [ "user_type", "user_id" ], name: "index_open_router_usage_logs_on_user"
   end
 
   create_table "users", force: :cascade do |t|
