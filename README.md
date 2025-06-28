@@ -1,5 +1,6 @@
 # OpenRouterUsageTracker
 [![Build Status](https://github.com/mclpio/open_router_usage_tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/mclpio/open_router_usage_tracker/actions)
+[![Gem Version](https://badge.fury.io/rb/open_router_usage_tracker.svg)](https://badge.fury.io/rb/open_router_usage_tracker)
 
 An effortless Rails engine to track API token usage and cost from [OpenRouter](https://openrouter.ai/), enabling easy rate-limiting and monitoring for your users.
 
