@@ -25,17 +25,22 @@ gem install open_router_usage_tracker
 
 ## Setup
 
-1. **Run the Install Generator**: This will create a migration file in your application to add the open_router_usage_logs table.
+1. **Run the Install Generator**: This will create a migration file in your application to add the `open_router_usage_logs` table.
     ```bash
     bin/rails g open_router_usage_tracker:install
     ```
 
-1. **Run the Database Migration**:
+2. **Run the Summary Table Generator (New in v0.2.0)**: To enable performant daily rate-limiting, generate the migration for the summary table.
+    ```bash
+    bin/rails g open_router_usage_tracker:summary_install
+    ```
+
+3. **Run the Database Migrations**:
     ```bash
     bin/rails db:migrate
     ```
 
-1. **Include the `Trackable` Concern**: To add the usage tracking methods (`usage_in_period`, etc.) to your user model, include the concern. This works with any user-like model (e.g., `User`, `Account`).
+4. **Include the `Trackable` Concern**: To add the usage tracking methods (`usage_in_period`, etc.) to your user model, include the concern. This works with any user-like model (e.g., `User`, `Account`).
     ```ruby
     # app/models/user.rb
     class User < ApplicationRecord
@@ -64,29 +69,56 @@ rescue ActiveRecord::RecordInvalid => e
 end
 ```
 
-### Tracking Usage
-The `Trackable` concern adds powerful querying methods to your user model.
+### Daily Usage Tracking and Rate-Limiting (Recommended)
 
-The main method is `usage_in_period(range)`, which returns a hash containing the total tokens and cost for a given time range.
+For high-performance rate-limiting, the gem provides helpers that query a daily summary table. This avoids slow `SUM` queries on the main log table.
 
-**Example: Implementing a rate limit**
+The primary method is `cost_exceeded?(limit:)`, which provides a near-instantaneous check against a user's daily spending.
 
-Imagine you want to prevent users from using more than 100,000 tokens in a 24-hour period.
+**Example: Implementing a daily cost limit**
+
+Imagine you want to prevent users from spending more than $1.00 per day.
 
 ```ruby
 # somewhere in a controller or before_action
 
-def check_usage_limit
-  usage = current_user.usage_in_last_24_hours
-
-  if usage[:tokens] > 100_000
-    render json: { error: "You have exceeded your daily usage limit." }, status: :too_many_requests
+def enforce_daily_limit
+  # This check is extremely fast as it queries the small summary table.
+  if current_user.cost_exceeded?(limit: 1.00)
+    render json: { error: "You have exceeded your daily spending limit." }, status: :too_many_requests
     return
   end
 end
 ```
 
-The gem also provides `usage_in_last_24_hours` as a convenience method and you can always get all the data using `usage_logs`.
+You can also retrieve the full summary for the current day (UTC):
+
+```ruby
+summary = current_user.usage_today
+# => <OpenRouterUsageTracker::DailySummary id: 1, user_id: 1, day: "2025-06-28", total_tokens: 1500, cost: 0.025, ...>
+
+summary.cost
+# => 0.025
+
+summary.total_tokens
+# => 1500
+```
+
+### Historical Usage Tracking
+
+The `Trackable` concern also adds methods for querying historical usage from the main log table.
+
+The main method is `usage_in_period(range)`, which returns a hash containing the total tokens and cost for a given time range.
+
+**Example: Checking usage for the current month**
+
+```ruby
+range = Time.current.beginning_of_month..Time.current
+usage = current_user.usage_in_period(range)
+# => { tokens: 50000, cost: 1.25 }
+```
+
+**DEPRECATED for rate-limiting**: The `usage_in_last_24_hours` method is still available but is **not recommended** for implementing rate limits due to its performance implications. Use `cost_exceeded?` instead for a more robust and scalable solution.
 
 ## Contributing
 Open an issue first.

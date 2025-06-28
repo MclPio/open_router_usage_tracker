@@ -6,6 +6,20 @@ module OpenRouterUsageTracker
 
     included do
       has_many :usage_logs, as: :user, class_name: "OpenRouterUsageTracker::UsageLog", dependent: :destroy
+      has_many :daily_summaries, as: :user, class_name: "OpenRouterUsageTracker::DailySummary", dependent: :destroy
+    end
+
+    def usage_today
+      daily_summaries.find_by(day: Date.current)
+    end
+
+    def cost_exceeded?(limit:, period: :daily)
+      case period
+      when :daily
+        usage_today&.cost.to_d > limit
+      else
+        raise ArgumentError, "Unsupported period: #{period}"
+      end
     end
 
     # A flexible method to query usage within any time period.
