@@ -19,8 +19,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_28_192523) do
     t.decimal "cost", precision: 10, scale: 5, default: "0.0", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["user_type", "user_id", "day"], name: "index_daily_summaries_on_user_and_day", unique: true
-    t.index ["user_type", "user_id"], name: "index_open_router_daily_summaries_on_user"
+    t.index [ "user_type", "user_id", "day" ], name: "index_daily_summaries_on_user_and_day", unique: true
+    t.index [ "user_type", "user_id" ], name: "index_open_router_daily_summaries_on_user"
   end
 
   create_table "open_router_usage_logs", force: :cascade do |t|
@@ -35,8 +35,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_06_28_192523) do
     t.json "raw_usage_response", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["request_id"], name: "index_open_router_usage_logs_on_request_id", unique: true
-    t.index ["user_type", "user_id"], name: "index_open_router_usage_logs_on_user"
+    t.index [ "request_id" ], name: "index_open_router_usage_logs_on_request_id", unique: true
+    t.index [ "user_type", "user_id" ], name: "index_open_router_usage_logs_on_user"
   end
 
   create_table "users", force: :cascade do |t|

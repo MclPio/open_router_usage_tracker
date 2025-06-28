@@ -8,6 +8,6 @@ class CreateOpenRouterDailySummaries < ActiveRecord::Migration[8.0]
       t.timestamps
     end
 
-    add_index :open_router_daily_summaries, [:user_type, :user_id, :day], unique: true, name: 'index_daily_summaries_on_user_and_day'
+    add_index :open_router_daily_summaries, [ :user_type, :user_id, :day ], unique: true, name: "index_daily_summaries_on_user_and_day"
   end
 end
