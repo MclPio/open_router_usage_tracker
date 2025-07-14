@@ -1,5 +1,4 @@
 require "open_router_usage_tracker/version"
-require "open_router_usage_tracker/railtie"
 require "open_router_usage_tracker/engine"
 
 module OpenRouterUsageTracker
