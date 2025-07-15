@@ -2,10 +2,10 @@ class CreateOpenRouterUsageLogs < ActiveRecord::Migration[8.0]
   def change
     create_table :open_router_usage_logs do |t|
       t.string :model, null: false
-      t.integer :prompt_tokens, null: false
-      t.integer :completion_tokens, null: false
-      t.integer :total_tokens, null: false
-      t.decimal :cost, precision: 10, scale: 5, null: false
+      t.integer :prompt_tokens, null: false, default: 0
+      t.integer :completion_tokens, null: false, default: 0
+      t.integer :total_tokens, null: false, default: 0
+      t.decimal :cost, precision: 10, scale: 5, null: false, default: 0.0
       t.references :user, null: false, polymorphic: true
       t.string :request_id, null: false
 

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_07_15_142239) do
+ActiveRecord::Schema[8.0].define(version: 2025_07_15_173826) do
   create_table "open_router_daily_summaries", force: :cascade do |t|
     t.string "user_type", null: false
     t.integer "user_id", null: false
@@ -27,10 +27,10 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_15_142239) do
 
   create_table "open_router_usage_logs", force: :cascade do |t|
     t.string "model", null: false
-    t.integer "prompt_tokens", null: false
-    t.integer "completion_tokens", null: false
-    t.integer "total_tokens", null: false
-    t.decimal "cost", precision: 10, scale: 5, null: false
+    t.integer "prompt_tokens", default: 0, null: false
+    t.integer "completion_tokens", default: 0, null: false
+    t.integer "total_tokens", default: 0, null: false
+    t.decimal "cost", precision: 10, scale: 5, default: "0.0", null: false
     t.string "user_type", null: false
     t.integer "user_id", null: false
     t.string "request_id", null: false

@@ -80,13 +80,46 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
 
   test "accepts provider name" do
     assert_nothing_raised do
-      OpenRouterUsageTracker.log(response: @sample_response, user: @user, provider: :openai)
+      OpenRouterUsageTracker.log(response: @openai_response, user: @user, provider: "open_ai")
     end
   end
 
-  test "openai response with provier is saved to the database" do
-    usage_log = OpenRouterUsageTracker.log(response: @openai_response, user: @user, provider: :openai)
+  test "open_ai response is saved in UsageLog" do
+    assert_difference("OpenRouterUsageTracker::UsageLog.count") do
+      OpenRouterUsageTracker.log(response: @openai_response, user: @user, provider: "open_ai")
+    end
+
+    usage_log = OpenRouterUsageTracker::UsageLog.find_by(request_id: @openai_response["id"])
+    assert_not_nil(usage_log)
+
+    assert_equal @openai_response.dig("model"), usage_log.model
+    assert_equal @openai_response.dig("usage", "input_tokens"), usage_log.prompt_tokens
+    assert_equal @openai_response.dig("usage", "output_tokens"), usage_log.completion_tokens
+    assert_equal @openai_response.dig("usage", "total_tokens"), usage_log.total_tokens
+    assert_equal 0, usage_log.cost
+    assert_equal @user, usage_log.user
+    assert_equal @openai_response.dig("id"), usage_log.request_id
+    assert_equal @openai_response, usage_log.raw_usage_response
   end
+
+  test "open_router response is saved in UsageLog" do
+    assert_difference("OpenRouterUsageTracker::UsageLog.count") do
+      OpenRouterUsageTracker.log(response: @sample_response, user: @user, provider: "open_router")
+    end
+
+    usage_log = OpenRouterUsageTracker::UsageLog.find_by(request_id: @sample_response["id"])
+    assert_not_nil(usage_log)
+
+    assert_equal @sample_response.dig("model"), usage_log.model
+    assert_equal @sample_response.dig("usage", "prompt_tokens"), usage_log.prompt_tokens
+    assert_equal @sample_response.dig("usage", "completion_tokens"), usage_log.completion_tokens
+    assert_equal @sample_response.dig("usage", "total_tokens"), usage_log.total_tokens
+    assert_equal @sample_response.dig("usage", "cost"), usage_log.cost
+    assert_equal @user, usage_log.user
+    assert_equal @sample_response.dig("id"), usage_log.request_id
+    assert_equal @sample_response, usage_log.raw_usage_response
+  end
+
 
   # test "identifies openai response and routes it correctly" do
   # end
