@@ -4,6 +4,8 @@ class CreateOpenRouterDailySummaries < ActiveRecord::Migration[8.0]
       t.references :user, null: false, polymorphic: true
       t.date :day, null: false
       t.integer :total_tokens, null: false, default: 0
+      t.integer :prompt_tokens, null: false, default: 0
+      t.integer :completion_tokens, null: false, default: 0
       t.decimal :cost, precision: 10, scale: 5, null: false, default: 0.0
       t.timestamps
     end

@@ -56,5 +56,21 @@ module OpenRouterUsageTracker
       assert_equal 0.03, summary.cost
       assert_equal 1, @user.daily_summaries.count
     end
+
+    test "saves prompt and completion tokens" do
+      api_response = {
+        "id" => "gen-1", "model" => "test/model",
+        "usage" => { "prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30, "cost" => 0.01 }
+      }
+
+      assert_difference("DailySummary.count", 1) do
+        OpenRouterUsageTracker.log(response: api_response, user: @user)
+      end
+
+      summary = @user.daily_summaries.find_by(day: @today)
+      assert_not_nil summary
+      assert_equal 10, summary.prompt_tokens
+      assert_equal 20, summary.completion_tokens
+    end
   end
 end

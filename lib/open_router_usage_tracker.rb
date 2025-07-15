@@ -37,6 +37,8 @@ module OpenRouterUsageTracker
       )
       summary.total_tokens += usage_log.total_tokens
       summary.cost += usage_log.cost
+      summary.prompt_tokens += usage_log.prompt_tokens
+      summary.completion_tokens += usage_log.completion_tokens
       summary.save!
     end
   end
