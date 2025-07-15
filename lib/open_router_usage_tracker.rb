@@ -6,7 +6,7 @@ module OpenRouterUsageTracker
   class << self
     attr_writer :configuration
 
-    def log(response:, user:)
+    def log(response:, user:, provider: nil)
       ApplicationRecord.transaction do
         usage_log = create_usage_log(response, user)
         update_daily_summary(usage_log)
