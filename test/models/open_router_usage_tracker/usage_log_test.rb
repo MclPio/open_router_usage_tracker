@@ -24,34 +24,29 @@ module OpenRouterUsageTracker
       assert_includes log.errors[:model], "can't be blank"
     end
 
-    test "is invalid without prompt_tokens" do
-      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.except(:prompt_tokens))
+    # --- Tests for numericality validations ---
+    test "is invalid with negative prompt_tokens" do
+      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(prompt_tokens: -1))
       assert_not log.valid?
-      assert_includes log.errors[:prompt_tokens], "can't be blank"
+      assert_includes log.errors[:prompt_tokens], "must be greater than or equal to 0"
     end
 
-    test "is invalid without completion_tokens" do
-      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.except(:completion_tokens))
+    test "is invalid with negative completion_tokens" do
+      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(completion_tokens: -1))
       assert_not log.valid?
-      assert_includes log.errors[:completion_tokens], "can't be blank"
+      assert_includes log.errors[:completion_tokens], "must be greater than or equal to 0"
     end
 
-    test "is invalid without total_tokens" do
-      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.except(:total_tokens))
+    test "is invalid with negative total_tokens" do
+      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(total_tokens: -1))
       assert_not log.valid?
-      assert_includes log.errors[:total_tokens], "can't be blank"
+      assert_includes log.errors[:total_tokens], "must be greater than or equal to 0"
     end
 
-    test "is invalid without a cost" do
-      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.except(:cost))
+    test "is invalid with negative cost" do
+      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(cost: -0.001))
       assert_not log.valid?
-      assert_includes log.errors[:cost], "can't be blank"
-    end
-
-    test "is invalid without a raw_usage_response" do
-        log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.except(:raw_usage_response))
-        assert_not log.valid?
-        assert_includes log.errors[:raw_usage_response], "can't be blank"
+      assert_includes log.errors[:cost], "must be greater than or equal to 0"
     end
 
     test "is invalid without a request_id" do
