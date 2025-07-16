@@ -1,11 +1,11 @@
-# OpenRouterUsageTracker
+# OpenRouterUsageTracker [WIP]
 [![Build Status](https://github.com/mclpio/open_router_usage_tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/mclpio/open_router_usage_tracker/actions)
 [![Gem Version](https://badge.fury.io/rb/open_router_usage_tracker.svg)](https://badge.fury.io/rb/open_router_usage_tracker)
 
-An effortless Rails engine to track API token usage and cost from [OpenRouter](https://openrouter.ai/), enabling easy rate-limiting and monitoring for your users.
+An effortless Rails engine to track API token usage and cost from multiple LLM providers, including [OpenRouter](https://openrouter.ai/), OpenAI, Google, and Anthropic. It enables easy rate-limiting and monitoring for your users.
 
 ## Motivation
-Managing Large Language Model (LLM) API costs is crucial for any application that provides AI features to users. This gem provides simple, out-of-the-box tools to log every OpenRouter API call, associate it with a user, and query their usage over time. This allows you to easily implement spending caps, rate limits, or usage-based billing tiers.
+Managing Large Language Model (LLM) API costs is crucial for any application that provides AI features to users. This gem provides simple, out-of-the-box tools to log every API call, associate it with a user, and query their usage over time. This allows you to easily implement spending caps, rate limits, or usage-based billing tiers across different providers.
 
 ## Installation
 Add this line to your application's Gemfile:
@@ -55,20 +55,36 @@ gem install open_router_usage_tracker
 Using the gem involves two parts: logging new requests and tracking existing usage.
 
 ### Logging a Request
-In your application where you receive a successful response from the OpenRouter API, call the `log` method. It's designed to be simple and fail loudly if the data is invalid.
+In your application where you receive a successful response from an LLM API, call the `log` method. It's designed to be simple and fail loudly if the data is invalid.
 
 ```ruby
-# Assume `api_response` is the parsed JSON hash from OpenRouter
+# Assume `api_response` is the parsed JSON hash from the provider
 # and `current_user` is your authenticated user object.
 
 begin
-  OpenRouterUsageTracker.log(response: api_response, user: current_user)
+  # For OpenRouter
+  OpenRouterUsageTracker.log(response: open_router_response, user: current_user)
+
+  # For OpenAI (or other providers)
+  OpenRouterUsageTracker.log(response: openai_response, user: current_user, provider: "open_ai")
 rescue ActiveRecord::RecordInvalid => e
   # This can happen if the response hash is missing required keys
-  # (e.g., 'id', 'model', 'usage').
-  logger.error "Failed to log OpenRouter usage: #{e.message}"
+  # (e.g., 'id', 'model').
+  logger.error "Failed to log usage: #{e.message}"
+rescue ArgumentError => e
+  # This will be raised if the provider is not supported.
+  logger.error "Unsupported provider: #{e.message}"
 end
 ```
+
+### Supported Providers
+The gem currently supports the following providers:
+- `open_router` (default)
+- `open_ai`
+- `google`
+- `anthropic`
+
+The gem will automatically parse the response from each provider to extract the relevant usage data. If a provider does not return a specific field (e.g., `cost`), it will be saved as `0`.
 
 ### Daily Usage Tracking and Rate-Limiting (Recommended)
 
@@ -132,3 +148,59 @@ Open an issue first.
 
 ## License
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+
+## Extra
+
+```mermaid
+graph TD
+    subgraph A[Rails Host App]
+        U[User Model]
+        C[Controller/Service]
+    end
+
+    subgraph B[OpenRouterUsageTracker Gem]
+        T{Trackable Concern}
+        L[Log Method]
+        AD(Adapter)
+        P[Parsers]
+        UL[UsageLog Model]
+        DS[DailySummary Model]
+    end
+
+    subgraph D[Database]
+        T1(open_router_usage_logs Table)
+        T2(open_router_daily_summaries Table)
+    end
+
+    C -- Calls --> L
+    U -- Includes --> T
+    T -- has_many --> UL
+    T -- has_many --> DS
+
+    L -- Uses --> AD
+    AD -- Selects --> P
+    P -- Creates --> UL
+    AD -- Updates --> DS
+
+    UL -- Persisted in --> T1
+    DS -- Persisted in --> T2
+
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style A fill:#ccf,stroke:#333,stroke-width:2px
+```
+
+```mermaid
+sequenceDiagram
+    participant App as Rails Host App
+    participant Gem as OpenRouterUsageTracker
+    participant DB as Database
+
+    App->>+Gem: OpenRouterUsageTracker.log(response: ..., user: ..., provider: 'open_ai')
+    Gem->>Gem: Select 'OpenAi' Parser
+    Gem->>+DB: BEGIN TRANSACTION
+    Gem->>DB: CREATE UsageLog record
+    Gem->>DB: FIND OR INITIALIZE DailySummary for today
+    Gem->>DB: INCREMENT and SAVE DailySummary record
+    DB-->>-Gem: COMMIT TRANSACTION
+    Gem-->>-App: return UsageLog object
+```
