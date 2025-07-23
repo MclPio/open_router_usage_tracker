@@ -211,6 +211,20 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     assert_equal 0, summary.cost # 0 cost because open_ai does not return cost
   end
 
+  test "stores raw response by default" do
+    usage_log = OpenRouterUsageTracker.log(response: @sample_response, user: @user)
+    assert_equal @sample_response, usage_log.raw_usage_response
+  end
+
+  test "stores raw response when store_raw_response is explicitly true" do
+    usage_log = OpenRouterUsageTracker.log(response: @sample_response, user: @user, store_raw_response: true)
+    assert_equal @sample_response, usage_log.raw_usage_response
+  end
+
+  test "does not store raw response when store_raw_response is false" do
+    usage_log = OpenRouterUsageTracker.log(response: @sample_response, user: @user, store_raw_response: false)
+    assert_equal({}, usage_log.raw_usage_response)
+  end
   # test "identifies anthropic response and routes it correctly" do
   # end
 

@@ -5,7 +5,25 @@ module OpenRouterUsageTracker
     module Base
       SUPPORTED_PROVIDERS = [ "open_ai", "open_router", "google", "anthropic" ].freeze
 
-      def log(response:, user:, provider: "open_router")
+      # Logs an API usage event, creating a UsageLog and updating the DailySummary.
+      # This is the primary method for recording usage data.
+      #
+      # @param response [Hash] The raw response hash from the API provider.
+      # @param user [ApplicationRecord] The user object (e.g., User, Account) associated with the API call.
+      # @param provider [String] The name of the API provider (e.g., 'open_router', 'open_ai').
+      #   Defaults to 'open_router'.
+      # @param store_raw_response [Boolean] If false, an empty hash will be stored in the
+      #   raw_usage_response column. Defaults to true.
+      #
+      # @return [OpenRouterUsageTracker::UsageLog] The newly created usage log record.
+      #
+      # @example Log a call and store the raw response
+      #   OpenRouterUsageTracker.log(response: api_response, user: current_user)
+      #
+      # @example Log a call without storing the raw response
+      #   OpenRouterUsageTracker.log(response: api_response, user: current_user, store_raw_response: false)
+      #
+      def log(response:, user:, provider: "open_router", store_raw_response: true)
         unless SUPPORTED_PROVIDERS.include?(provider)
           raise ArgumentError.new("Unsupported provider: #{provider}. Supported providers are: #{SUPPORTED_PROVIDERS.join(', ')}")
         end
@@ -13,6 +31,7 @@ module OpenRouterUsageTracker
         parser_class = "OpenRouterUsageTracker::Parsers::#{provider.camelize}".constantize
         attributes = parser_class.parse(response)
         attributes[:user] = user
+        attributes[:raw_usage_response] = {} unless store_raw_response
 
         ApplicationRecord.transaction do
           usage_log = OpenRouterUsageTracker::UsageLog.create!(attributes)
@@ -22,22 +41,6 @@ module OpenRouterUsageTracker
       end
 
       private
-
-      # def create_usage_log(response, user)
-      #   attributes = {
-      #     model: response["model"],
-      #     prompt_tokens: response.dig("usage", "prompt_tokens"),
-      #     completion_tokens: response.dig("usage", "completion_tokens"),
-      #     total_tokens: response.dig("usage", "total_tokens"),
-      #     cost: response.dig("usage", "cost"),
-      #     request_id: response["id"],
-      #     raw_usage_response: response,
-      #     user: user
-      #   }
-      #   # print(attributes)
-      #   # {:model=>"openai/gpt-4o", :prompt_tokens=>10, :completion_tokens=>20, :total_tokens=>30, :cost=>0.001, :request_id=>"or-12345", :raw_usage_response=>{"id"=>"or-12345", "model"=>"openai/gpt-4o", "usage"=>{"prompt_tokens"=>10, "completion_tokens"=>20, "total_tokens"=>30, "cost"=>0.001}}, :user=>#<User id: 1, created_at: "2025-07-15 17:29:20.739781000 +0000", updated_at: "2025-07-15 17:29:20.739781000 +0000">}
-      #   OpenRouterUsageTracker::UsageLog.create!(attributes)
-      # end
 
       def update_daily_summary(usage_log)
         summary = OpenRouterUsageTracker::DailySummary.find_or_initialize_by(
