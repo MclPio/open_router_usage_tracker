@@ -147,7 +147,6 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     end
 
     usage_log = OpenRouterUsageTracker::UsageLog.find_by(request_id: @openai_response["id"])
-    assert_not_nil(usage_log)
 
     assert_equal @openai_response.dig("model"), usage_log.model
     assert_equal @openai_response.dig("usage", "input_tokens"), usage_log.prompt_tokens
@@ -165,7 +164,6 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     end
 
     usage_log = OpenRouterUsageTracker::UsageLog.find_by(request_id: @sample_response["id"])
-    assert_not_nil(usage_log)
 
     assert_equal @sample_response.dig("model"), usage_log.model
     assert_equal @sample_response.dig("usage", "prompt_tokens"), usage_log.prompt_tokens
@@ -183,7 +181,6 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     end
 
     summary = OpenRouterUsageTracker::DailySummary.last
-    assert_not_nil summary
     assert_equal @user, summary.user
     assert_equal Date.current, summary.day
     assert_equal @sample_response.dig("usage", "prompt_tokens"), summary.prompt_tokens
