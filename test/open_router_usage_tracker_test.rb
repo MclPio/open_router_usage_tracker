@@ -252,7 +252,7 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
   # end
 
   # <-- PROVIDER TESTS -->
-  test "log saved when you get 2 different providers with same requiest_id" do
+  test "log saved when you get 2 different providers with same request_id" do
     @sample_response["id"] = "mclpio-against-the-world"
     @openai_response["id"] = "mclpio-against-the-world"
 
@@ -266,8 +266,9 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     @openai_response["id"] = "mclpio-against-the-world"
     @openai_response_1["id"] = "mclpio-against-the-world"
 
-    assert_raises "ActiveRecord::RecordInvalid: Validation failed: Request has already been taken" do
-      OpenRouterUsageTracker.log(response: @openai_response, user: @user, provider: "open_ai")
+    OpenRouterUsageTracker.log(response: @openai_response, user: @user, provider: "open_ai")
+
+    assert_raises "ActiveRecord::RecordInvalid" do
       OpenRouterUsageTracker.log(response: @openai_response_1, user: @user, provider: "open_ai")
     end
   end
