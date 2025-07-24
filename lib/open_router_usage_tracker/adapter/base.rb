@@ -32,6 +32,7 @@ module OpenRouterUsageTracker
         attributes = parser_class.parse(response)
         attributes[:user] = user
         attributes[:raw_usage_response] = {} unless store_raw_response
+        attributes[:provider] = provider
 
         ApplicationRecord.transaction do
           usage_log = OpenRouterUsageTracker::UsageLog.create!(attributes)

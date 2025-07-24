@@ -10,7 +10,7 @@ module OpenRouterUsageTracker
     validates :completion_tokens, numericality: { greater_than_or_equal_to: 0 }
     validates :total_tokens, numericality: { greater_than_or_equal_to: 0 }
     validates :cost, numericality: { greater_than_or_equal_to: 0 }
-
-    validates :request_id, presence: true, uniqueness: true
+    validates :provider, presence: true
+    validates :request_id, presence: true, uniqueness: { scope: :provider }
   end
 end
