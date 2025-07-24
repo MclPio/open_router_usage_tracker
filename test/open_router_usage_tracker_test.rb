@@ -122,6 +122,26 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
       "user" => nil,
       "metadata" => {}
     }
+
+    # Can't use for testing yet as I do not have anthropic parser yet :(
+    # @anthropic_response = {
+    #   "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
+    #   "type": "message",
+    #   "role": "assistant",
+    #   "content": [
+    #     {
+    #       "type": "text",
+    #       "text": "Hello!"
+    #     }
+    #   ],
+    #   "model": "claude-opus-4-20250514",
+    #   "stop_reason": "end_turn",
+    #   "stop_sequence": null,
+    #   "usage": {
+    #     "input_tokens": 12,
+    #     "output_tokens": 6
+    #   }
+    # }
   end
 
   test "log creates a new usage log record" do
@@ -230,4 +250,25 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
 
   # test "identifies xAI response and routes it correctly" do
   # end
+
+  # <-- PROVIDER TESTS -->
+  test "log saved when you get 2 different providers with same requiest_id" do
+    @sample_response["id"] = "mclpio-against-the-world"
+    @openai_response["id"] = "mclpio-against-the-world"
+
+    assert_difference "OpenRouterUsageTracker::UsageLog.count", 2 do
+      OpenRouterUsageTracker.log(response: @sample_response, user: @user, provider: "open_router")
+      OpenRouterUsageTracker.log(response: @openai_response, user: @user, provider: "open_ai")
+    end
+  end
+
+  test "log not saved when you get same providers and request_id" do
+    @openai_response["id"] = "mclpio-against-the-world"
+    @openai_response_1["id"] = "mclpio-against-the-world"
+
+    assert_raises "ActiveRecord::RecordInvalid: Validation failed: Request has already been taken" do
+      OpenRouterUsageTracker.log(response: @openai_response, user: @user, provider: "open_ai")
+      OpenRouterUsageTracker.log(response: @openai_response_1, user: @user, provider: "open_ai")
+    end
+  end
 end
