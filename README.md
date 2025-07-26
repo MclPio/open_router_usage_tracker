@@ -137,18 +137,7 @@ def enforce_daily_limit
 end
 ```
 
-### Historical Usage Tracking
-The `Trackable` concern also adds a method for querying historical usage from the main log table.
 
-The main method is `usage_in_period(range)`, which returns a hash containing the total tokens and cost for a given time range.
-
-**Example: Checking usage for the current month**
-
-```ruby
-range = Time.current.beginning_of_month..Time.current
-usage = current_user.usage_in_period(range)
-# => { tokens: 50000, cost: 1.25 }
-```
 
 ## Contributing
 Open an issue first.
