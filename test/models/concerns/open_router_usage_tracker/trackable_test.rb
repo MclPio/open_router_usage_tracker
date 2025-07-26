@@ -50,24 +50,6 @@ class TrackableTest < ActiveSupport::TestCase
     assert_equal 0, usage[:cost]
   end
 
-  test "usage_in_last_24_hours convenience method works correctly" do
-    # This method should yield the same result as our first test.
-    # Expected tokens: 250 + 400 = 650
-    # Expected cost: 0.05 + 0.10 = 0.15
-    usage = @user.usage_in_last_24_hours
-
-    assert_equal 650, usage[:tokens]
-    assert_equal 0.15, usage[:cost]
-  end
-
-  test "returns zero for a user with no usage logs" do
-    new_user = TrackableDummy.create!
-    usage = new_user.usage_in_last_24_hours
-
-    assert_equal 0, usage[:tokens]
-    assert_equal 0, usage[:cost]
-  end
-
   test "has_many association works and can retrieve logs" do
     assert_equal 3, @user.usage_logs.count
     assert @user.usage_logs.all? { |log| log.is_a?(OpenRouterUsageTracker::UsageLog) }

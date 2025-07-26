@@ -5,6 +5,28 @@ module OpenRouterUsageTracker
     setup do
       @user = User.create!
       @today = Date.current
+
+      @open_ai_response = {
+        "id" => "resp_67ccd2bed1ec8190b14f964abc0542670bb6a6b452d3795b",
+        "model" => "gpt-4.1-2025-04-14",
+        "usage" => {
+          "input_tokens" => 36,
+          "input_tokens_details" => {
+            "cached_tokens" => 0
+          },
+          "output_tokens" => 87,
+          "output_tokens_details" => {
+            "reasoning_tokens" => 0
+          },
+          "total_tokens" => 123
+        }
+      }
+
+      @open_router_response = {
+        "id" => "or-12345",
+        "model" => "openai/gpt-4o",
+        "usage" => { "prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30, "cost" => 0.001 }
+      }
     end
 
     test ".log creates a daily summary record if one does not exist" do
@@ -24,10 +46,10 @@ module OpenRouterUsageTracker
     end
 
     test ".log updates an existing daily summary record" do
-      summary = DailySummary.create!(user: @user, day: @today, total_tokens: 50, cost: 0.05)
+      summary = DailySummary.create!(user: @user, day: @today, total_tokens: 50, cost: 0.05, model: "super-cool")
 
       api_response = {
-        "id" => "gen-2", "model" => "test/model",
+        "id" => "gen-2", "model" => "super-cool",
         "usage" => { "prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30, "cost" => 0.01 }
       }
 
@@ -71,6 +93,38 @@ module OpenRouterUsageTracker
       assert_not_nil summary
       assert_equal 10, summary.prompt_tokens
       assert_equal 20, summary.completion_tokens
+    end
+
+    test "can save and update 2 different providers on same day" do
+      assert_difference "DailySummary.count", 2 do
+        OpenRouterUsageTracker.log(response: @open_ai_response, user: @user, provider: "open_ai")
+        OpenRouterUsageTracker.log(response: @open_router_response, user: @user, provider: "open_router")
+      end
+    end
+
+    test "can save same provider different model" do
+      modified_open_ai_response = @open_ai_response.deep_dup
+      modified_open_ai_response["model"] = "super-gpt"
+      modified_open_ai_response["id"] = "wahoo"
+
+      assert_difference "DailySummary.count", 2 do
+        OpenRouterUsageTracker.log(response: @open_ai_response, user: @user, provider: "open_ai")
+        OpenRouterUsageTracker.log(response: modified_open_ai_response, user: @user, provider: "open_ai")
+      end
+    end
+
+    test "fetching daily summary presents different provider/model combinations for the day" do
+      OpenRouterUsageTracker.log(response: @open_ai_response, user: @user, provider: "open_ai")
+      OpenRouterUsageTracker.log(response: @open_router_response, user: @user, provider: "open_router")
+
+      open_ai_summary = @user.daily_summaries.find_by(day: @today, provider: "open_ai")
+      open_router_summary = @user.daily_summaries.find_by(day: @today, provider: "open_router")
+
+      assert_equal @open_ai_response["model"], open_ai_summary["model"]
+      assert_equal @open_ai_response.dig("usage", "total_tokens"), open_ai_summary["total_tokens"]
+
+      assert_equal @open_router_response["model"], open_router_summary["model"]
+      assert_equal @open_router_response.dig("usage", "total_tokens"), open_router_summary["total_tokens"]
     end
   end
 end

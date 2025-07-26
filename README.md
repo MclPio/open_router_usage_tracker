@@ -26,28 +26,50 @@ gem install open_router_usage_tracker
 
 ## Setup
 
-1. **Run the Install Generator**: This will create a migration file in your application to add the `open_router_usage_logs` table.
+1.  **Run the Install Generator**: This will create a migration file in your application to add the `open_router_usage_logs` table.
     ```bash
     bin/rails g open_router_usage_tracker:install
     ```
 
-2. **Run the Summary Table Generator (New in v0.2.0)**: To enable performant daily rate-limiting, generate the migration for the summary table.
+2.  **Run the Summary Table Generator (New in v0.2.0)**: To enable performant daily rate-limiting, generate the migration for the summary table.
     ```bash
     bin/rails g open_router_usage_tracker:summary_install
     ```
 
-3. **Run the Database Migrations**:
+3.  **Run the Database Migrations**:
     ```bash
     bin/rails db:migrate
     ```
 
-4. **Include the `Trackable` Concern**: To add the usage tracking methods (`usage_in_period`, etc.) to your user model, include the concern. This works with any user-like model (e.g., `User`, `Account`).
+4.  **Include the `Trackable` Concern**: To add the usage tracking methods to your user model, include the concern. This works with any user-like model (e.g., `User`, `Account`).
     ```ruby
     # app/models/user.rb
     class User < ApplicationRecord
       include OpenRouterUsageTracker::Trackable
 
       # ... rest of your model
+    end
+    ```
+
+5.  **(IMPORTANT) Configure Data Retention**: The `Trackable` concern intentionally does not set a `dependent` option on the `usage_logs` and `daily_summaries` associations. This is a critical design choice to prevent accidental data loss. You must decide what happens to a user's usage data when their account is deleted.
+
+    **To delete all usage data with the user (recommended for privacy):**
+    ```ruby
+    # app/models/user.rb
+    class User < ApplicationRecord
+      include OpenRouterUsageTracker::Trackable
+
+      has_many :usage_logs, as: :user, class_name: "OpenRouterUsageTracker::UsageLog", dependent: :destroy
+      has_many :daily_summaries, as: :user, class_name: "OpenRouterUsageTracker::DailySummary", dependent: :destroy
+    end
+    ```
+
+    **To keep all usage data (e.g., for auditing or analytics):**
+    ```ruby
+    # app/models/user.rb
+    class User < ApplicationRecord
+      include OpenRouterUsageTracker::Trackable
+      # No `dependent` option needed. The records will remain.
     end
     ```
 
@@ -86,44 +108,37 @@ The gem currently supports the following providers:
 
 The gem will automatically parse the response from each provider to extract the relevant usage data. If a provider does not return a specific field (e.g., `cost`), it will be saved as `0`.
 
-### Daily Usage Tracking and Rate-Limiting (Recommended)
+### Daily Usage Tracking and Rate-Limiting
+For high-performance rate-limiting, the gem provides a method to query the daily summary table. This avoids slow `SUM` queries on the main log table.
 
-For high-performance rate-limiting, the gem provides helpers that query a daily summary table. This avoids slow `SUM` queries on the main log table.
+The primary method is `daily_usage_summary_for(day:, provider:, model:)`, which provides a near-instantaneous check of a user's usage for a specific model on a given day.
 
-The primary method is `cost_exceeded?(limit:)`, which provides a near-instantaneous check against a user's daily spending.
+**Example: Implementing a daily token limit for a specific model**
 
-**Example: Implementing a daily cost limit**
-
-Imagine you want to prevent users from spending more than $1.00 per day.
+Imagine you want to prevent users from using more than 100,000 tokens per day for a specific model.
 
 ```ruby
-# somewhere in a controller or before_action
-
+# somewhere in a controller or before_action or validation
 def enforce_daily_limit
+  # Be sure to handle timezones correctly for your users.
+  today = Time.zone.today
+  
   # This check is extremely fast as it queries the small summary table.
-  if current_user.cost_exceeded?(limit: 1.00)
-    render json: { error: "You have exceeded your daily spending limit." }, status: :too_many_requests
+  summary = current_user.daily_usage_summary_for(
+    day: today,
+    provider: "open_ai",
+    model: "gpt-4o"
+  )
+
+  if summary && summary.total_tokens > 100_000
+    render json: { error: "You have exceeded your daily token limit for this model." }, status: :too_many_requests
     return
   end
 end
 ```
 
-You can also retrieve the full summary for the current day (UTC):
-
-```ruby
-summary = current_user.usage_today
-# => <OpenRouterUsageTracker::DailySummary id: 1, user_id: 1, day: "2025-06-28", total_tokens: 1500, cost: 0.025, ...>
-
-summary.cost
-# => 0.025
-
-summary.total_tokens
-# => 1500
-```
-
 ### Historical Usage Tracking
-
-The `Trackable` concern also adds methods for querying historical usage from the main log table.
+The `Trackable` concern also adds a method for querying historical usage from the main log table.
 
 The main method is `usage_in_period(range)`, which returns a hash containing the total tokens and cost for a given time range.
 
@@ -134,8 +149,6 @@ range = Time.current.beginning_of_month..Time.current
 usage = current_user.usage_in_period(range)
 # => { tokens: 50000, cost: 1.25 }
 ```
-
-**DEPRECATED for rate-limiting**: The `usage_in_last_24_hours` method is still available but is **not recommended** for implementing rate limits due to its performance implications. Use `cost_exceeded?` instead for a more robust and scalable solution.
 
 ## Contributing
 Open an issue first.

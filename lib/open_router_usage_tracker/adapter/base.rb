@@ -46,7 +46,9 @@ module OpenRouterUsageTracker
       def update_daily_summary(usage_log)
         summary = OpenRouterUsageTracker::DailySummary.find_or_initialize_by(
           user: usage_log.user,
-          day: Date.current
+          day: Date.current,
+          provider: usage_log.provider,
+          model: usage_log.model
         )
         summary.total_tokens += usage_log.total_tokens
         summary.cost += usage_log.cost
