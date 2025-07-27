@@ -1,9 +1,13 @@
 module OpenRouterUsageTracker
   require "open_router_usage_tracker/parsers/open_ai"
   require "open_router_usage_tracker/parsers/open_router"
+  require "open_router_usage_tracker/parsers/google"
+  require "open_router_usage_tracker/parsers/anthropic"
+  require "open_router_usage_tracker/parsers/x_ai"
+
   module Adapter
     module Base
-      SUPPORTED_PROVIDERS = [ "open_ai", "open_router", "google", "anthropic" ].freeze
+      SUPPORTED_PROVIDERS = [ "open_ai", "open_router", "google", "anthropic", "x_ai" ].freeze
 
       # Logs an API usage event, creating a UsageLog and updating the DailySummary.
       # This is the primary method for recording usage data.

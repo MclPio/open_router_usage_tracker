@@ -123,25 +123,103 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
       "metadata" => {}
     }
 
-    # Can't use for testing yet as I do not have anthropic parser yet :(
-    # @anthropic_response = {
-    #   "id": "msg_01XFDUDYJgAACzvnptvVoYEL",
-    #   "type": "message",
-    #   "role": "assistant",
-    #   "content": [
-    #     {
-    #       "type": "text",
-    #       "text": "Hello!"
-    #     }
-    #   ],
-    #   "model": "claude-opus-4-20250514",
-    #   "stop_reason": "end_turn",
-    #   "stop_sequence": null,
-    #   "usage": {
-    #     "input_tokens": 12,
-    #     "output_tokens": 6
-    #   }
-    # }
+    @anthropic_response = {
+      "id" => "msg_01XFDUDYJgAACzvnptvVoYEL",
+      "type" => "message",
+      "role" => "assistant",
+      "content" => [
+        {
+          "type" => "text",
+          "text" => "Hello!"
+        }
+      ],
+      "model" => "claude-opus-4-20250514",
+      "stop_reason" => "end_turn",
+      "stop_sequence" => nil,
+      "usage" => {
+        "input_tokens" => 12,
+        "output_tokens" => 6
+      }
+    }
+
+    @google_response = {
+      "candidates" => [
+        {
+          "content" => {
+            "parts" => [
+              {
+                "text" => "The quick brown fox jumps over the lazy dog."
+              }
+            ],
+            "role" => "model"
+          },
+          "finishReason" => "STOP",
+          "index" => 0,
+          "safetyRatings" => []
+        }
+      ],
+      "usageMetadata" => {
+        "promptTokenCount" => 10,
+        "cachedContentTokenCount" => 0,
+        "candidatesTokenCount" => 9,
+        "toolUsePromptTokenCount" => 0,
+        "thoughtsTokenCount" => 0,
+        "totalTokenCount" => 19,
+        "promptTokensDetails" => [
+          {
+            "modality" => "TEXT",
+            "tokenCount" => 10
+          }
+        ],
+        "cacheTokensDetails" => [],
+        "candidatesTokensDetails" => [
+          {
+            "modality" => "TEXT",
+            "tokenCount" => 9
+          }
+        ],
+        "toolUsePromptTokensDetails" => []
+      },
+      "model" => "gemini-pro",
+      "responseId" => "some-unique-google-id-12345"
+    }
+
+    @x_ai_response = {
+      "id" => "a3d1008e-4544-40d4-d075-11527e794e4a",
+      "object" => "chat.completion",
+      "created" => 1752854522,
+      "model" => "grok-4",
+      "choices" => [
+        {
+          "index" => 0,
+          "message" => {
+            "role" => "assistant",
+            "content" => "101 multiplied by 3 is 303.",
+            "refusal" => nil
+          },
+          "finish_reason" => "stop"
+        }
+      ],
+      "usage" => {
+        "prompt_tokens" => 32,
+        "completion_tokens" => 9,
+        "total_tokens" => 135,
+        "prompt_tokens_details" => {
+          "text_tokens" => 32,
+          "audio_tokens" => 0,
+          "image_tokens" => 0,
+          "cached_tokens" => 6
+        },
+        "completion_tokens_details" => {
+          "reasoning_tokens" => 94,
+          "audio_tokens" => 0,
+          "accepted_prediction_tokens" => 0,
+          "rejected_prediction_tokens" => 0
+        },
+        "num_sources_used" => 0
+      },
+      "system_fingerprint" => "fp_3a7881249c"
+    }
   end
 
   test "log creates a new usage log record" do
@@ -245,11 +323,48 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     usage_log = OpenRouterUsageTracker.log(response: @sample_response, user: @user, store_raw_response: false)
     assert_equal({}, usage_log.raw_usage_response)
   end
-  # test "identifies anthropic response and routes it correctly" do
-  # end
 
-  # test "identifies xAI response and routes it correctly" do
-  # end
+  test "logs anthropic response" do
+    usage_log = OpenRouterUsageTracker.log(response: @anthropic_response, user: @user, provider: "anthropic")
+
+    assert_equal @anthropic_response["model"], usage_log.model
+    assert_equal @anthropic_response["id"], usage_log.request_id
+    assert_equal "anthropic", usage_log.provider
+    assert_equal @user, usage_log.user
+    assert_equal @anthropic_response, usage_log.raw_usage_response
+    assert_equal @anthropic_response.dig("usage", "input_tokens"), usage_log.prompt_tokens
+    assert_equal @anthropic_response.dig("usage", "output_tokens"), usage_log.completion_tokens
+    assert_equal (@anthropic_response.dig("usage", "input_tokens").to_i +
+                  @anthropic_response.dig("usage", "output_tokens").to_i),
+                  usage_log.total_tokens
+  end
+
+  test "logs google response" do
+    usage_log = OpenRouterUsageTracker.log(response: @google_response, user: @user, provider: "google")
+
+    assert_equal @google_response["model"], usage_log.model
+    assert_equal @google_response["responseId"], usage_log.request_id
+    assert_equal "google", usage_log.provider
+    assert_equal @user, usage_log.user
+    assert_equal @google_response, usage_log.raw_usage_response
+    assert_equal @google_response.dig("usageMetadata", "promptTokenCount"), usage_log.prompt_tokens
+    assert_equal @google_response.dig("usageMetadata", "candidatesTokenCount"), usage_log.completion_tokens
+    assert_equal @google_response.dig("usageMetadata", "totalTokenCount"), usage_log.total_tokens
+  end
+
+  test "logs XAi response" do
+    usage_log = OpenRouterUsageTracker.log(response: @x_ai_response, user: @user, provider: "x_ai")
+
+    assert_equal @x_ai_response.dig("model"), usage_log.model
+    assert_equal @x_ai_response.dig("usage", "prompt_tokens"), usage_log.prompt_tokens
+    assert_equal @x_ai_response.dig("usage", "completion_tokens"), usage_log.completion_tokens
+    assert_equal @x_ai_response.dig("usage", "total_tokens"), usage_log.total_tokens
+    assert_equal 0, usage_log.cost
+    assert_equal "x_ai", usage_log.provider
+    assert_equal @user, usage_log.user
+    assert_equal @x_ai_response.dig("id"), usage_log.request_id
+    assert_equal @x_ai_response, usage_log.raw_usage_response
+  end
 
   # <-- PROVIDER TESTS -->
   test "log saved when you get 2 different providers with same request_id" do
