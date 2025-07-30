@@ -2,8 +2,8 @@ module OpenRouterUsageTracker
   module Parsers
     class Anthropic
       def self.parse(response)
-        input_tokens = response.dig("usage", "input_tokens")
-        output_tokens = response.dig("usage", "output_tokens")
+        input_tokens = response.dig("usage", "input_tokens").to_i
+        output_tokens = response.dig("usage", "output_tokens").to_i
         total_tokens = input_tokens + output_tokens
 
         {
@@ -11,6 +11,7 @@ module OpenRouterUsageTracker
           prompt_tokens: input_tokens,
           completion_tokens: output_tokens,
           total_tokens: total_tokens,
+          cost: response.dig("usage", "cost").to_f,
           request_id: response["id"],
           raw_usage_response: response
         }

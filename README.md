@@ -1,11 +1,44 @@
-# OpenRouterUsageTracker [WIP]
+# OpenRouterUsageTracker
 [![Build Status](https://github.com/mclpio/open_router_usage_tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/mclpio/open_router_usage_tracker/actions)
 [![Gem Version](https://badge.fury.io/rb/open_router_usage_tracker.svg)](https://badge.fury.io/rb/open_router_usage_tracker)
 
-An effortless Rails engine to track API token usage and cost from multiple LLM providers, including [OpenRouter](https://openrouter.ai/), OpenAI, Google, Anthropic and xAI. It enables easy rate-limiting and monitoring for your users.
+An effortless Rails engine to track API token usage and cost from multiple LLM providers, including OpenRouter, OpenAI, Google, Anthropic, and xAI. It enables easy rate-limiting and monitoring for your users.
 
 ## Motivation
 Managing Large Language Model (LLM) API costs is crucial for any application that provides AI features to users. This gem provides simple, out-of-the-box tools to log every API call, associate it with a user, and query their usage over time. This allows you to easily implement spending caps, rate limits, or usage-based billing tiers across different providers.
+
+## Quick Start
+
+1.  **Add the gem to your Gemfile:**
+    ```ruby
+    gem 'open_router_usage_tracker', '~> 1.0.0'
+    ```
+
+2.  **Install and run migrations:**
+    ```bash
+    bundle install
+    bin/rails g open_router_usage_tracker:install
+    bin/rails g open_router_usage_tracker:summary_install
+    bin/rails db:migrate
+    ```
+
+3.  **Add the concern to your User model:**
+    ```ruby
+    # app/models/user.rb
+    class User < ApplicationRecord
+      include OpenRouterUsageTracker::Trackable
+    end
+    ```
+
+4.  **Log a request:**
+    ```ruby
+    # In your controller or service
+    OpenRouterUsageTracker.log(
+      response: a_parsed_json_response_from_your_llm_provider,
+      user: current_user,
+      provider: "open_ai"
+    )
+    ```
 
 ## Installation
 Add this line to your application's Gemfile:
@@ -31,7 +64,7 @@ gem install open_router_usage_tracker
     bin/rails g open_router_usage_tracker:install
     ```
 
-2.  **Run the Summary Table Generator (New since v0.2.0 & Required)**: To enable performant daily rate-limiting, generate the migration for the summary table.
+2.  **Run the Summary Table Generator (Required)**: To enable performant daily rate-limiting, generate the migration for the summary table.
     ```bash
     bin/rails g open_router_usage_tracker:summary_install
     ```
@@ -83,42 +116,55 @@ In your application where you receive a successful response from an LLM API, cal
 # Assume `api_response` is the parsed JSON hash from the provider
 # and `current_user` is your authenticated user object.
 
-# For OpenRouter
+# For OpenRouter (the default provider)
 OpenRouterUsageTracker.log(response: open_router_response, user: current_user)
-# Or
-OpenRouterUsageTracker.log(response: open_router_response, user: current_user, provider: "open_router")
 
-# For OpenAI (or other providers)
+# For OpenAI
 OpenRouterUsageTracker.log(response: openai_response, user: current_user, provider: "open_ai")
 
-# If you do not want to store the raw api response you can additionally do or filter out whatever you do not want yourself before logging the response
-OpenRouterUsageTracker.log(response: openai_response, user: current_user, provider: "open_ai", store_raw_response: false)
+# For Google
+OpenRouterUsageTracker.log(response: google_response, user: current_user, provider: "google")
+
+# You can also prevent storing the raw API response for privacy or storage reasons.
+OpenRouterUsageTracker.log(response: api_response, user: current_user, provider: "anthropic", store_raw_response: false)
 ```
 
-### Required Keys
-In general for the log method to parse the api, the `model`, `id`, `usage` or comparably named keys will need to be included in the response api, DO NOT FILTER THEM OUT!
-
 ### Supported Providers
-The gem currently supports the following providers:
+The gem currently supports the following providers out-of-the-box:
 - `open_router` (default)
 - `open_ai`
 - `google`
 - `anthropic`
 - `x_ai`
 
-The gem will automatically parse the response from each provider to extract the relevant usage data. If a provider does not return a specific field (applies for `cost`), it will be saved as `0`. `cost` is generally returned by open router and only if you request it from the api. More on that [here](https://openrouter.ai/docs/use-cases/usage-accounting)
+The gem will automatically parse the response from each provider to extract the relevant usage data. If a provider does not return a specific field (like `cost`), it will be saved as `0`.
+
+#### Providing Your Own Cost
+
+For providers that do not return cost information, you can calculate it yourself and add it to the response hash before logging. The gem will automatically detect and use a `cost` key inside the `usage` hash.
+
+```ruby
+# Calculate your own cost for an OpenAI call
+openai_response["usage"]["cost"] = your_calculated_cost # e.g., 0.0123
+
+# The log method will now use your provided cost
+OpenRouterUsageTracker.log(response: openai_response, user: current_user, provider: "open_ai")
+```
+
+### Required Keys
+For the `log` method to parse the API response correctly, the `model`, `id`, and `usage` (or similarly named) keys must be present in the response hash. Do not filter them out before logging.
 
 ### Daily Usage Tracking and Rate-Limiting
-For high-performance rate-limiting, the gem provides a method to query the daily summary table. This avoids slow `SUM` queries on the main log table.
+For high-performance rate-limiting, the gem provides methods to query the daily summary table. This avoids slow `SUM` queries on the main log table.
 
-The primary method is `daily_usage_summary_for(day:, provider:, model:)`, which provides a near-instantaneous check of a user's usage for a specific model on a given day.
+The `daily_usage_summary_for(day:, provider:, model:)` method provides a near-instantaneous check of a user's usage for a specific model on a given day.
 
 **Example: Implementing a daily token limit for a specific model**
 
 Imagine you want to prevent users from using more than 100,000 tokens per day for a specific model.
 
 ```ruby
-# somewhere in a controller or before_action or validation
+# somewhere in a controller or before_action
 def enforce_daily_limit
   # Be sure to handle timezones correctly for your users.
   today = Time.zone.today # =>  Wed, 30 Jul 2025
@@ -130,21 +176,6 @@ def enforce_daily_limit
     model: "gpt-4o"
   )
 
-  # Outputs the following which is the sum of today's logs, due note if you have token in your rails filter, it does come out as "[FILTERED]" but the data is still accessible if you call it.
-  # <OpenRouterUsageTracker::DailySummary:0x00007dfd46afa3e0
-    id: 1,
-    user_type: "User",
-    user_id: 1,
-    day: "2025-07-30",
-    total_tokens: "[FILTERED]",
-    prompt_tokens: "[FILTERED]",
-    completion_tokens: "[FILTERED]",
-    cost: 0.1e-2,
-    provider: "open_router",
-    model: "openai/gpt-4o",
-    created_at: "2025-07-30 01:14:56.101663000 +0000",
-    updated_at: "2025-07-30 01:14:56.101663000 +0000">
-
   if summary && summary.total_tokens > 100_000
     render json: { error: "You have exceeded your daily token limit for this model." }, status: :too_many_requests
     return
@@ -152,7 +183,33 @@ def enforce_daily_limit
 end
 ```
 
-If you are curious why we have the limit by provider and model, it is because different LLM models have different costs, so it will not make sense to add them up. But you can always run your own queries on the table.
+### Querying Costs
+
+The `Trackable` concern also provides a powerful method to calculate total costs over a date range by querying the performant `daily_summaries` table.
+
+The `total_cost_in_range(range, provider:, model: nil)` method allows you to easily calculate costs for a specific provider or a specific model over any period.
+
+**Example: Analyzing costs over a period**
+
+```ruby
+# In a reporting or analytics service
+def generate_cost_report(user)
+  # Get the date range for the last 30 days.
+  last_30_days = (30.days.ago.to_date)..Date.current
+
+  # Calculate the total cost for all OpenRouter models in the last 30 days.
+  # This is meaningful because OpenRouter provides direct cost data.
+  open_router_cost = user.total_cost_in_range(last_30_days, provider: "open_router")
+
+  # For providers that don't return cost, this will correctly be 0.
+  openai_cost = user.total_cost_in_range(last_30_days, provider: "open_ai")
+
+  puts "Total OpenRouter cost in the last 30 days: $#{open_router_cost.round(2)}"
+  puts "Total OpenAI cost in the last 30 days: $#{openai_cost.round(2)}" # Will be $0.00
+end
+```
+
+Note that different LLM models have different costs, so it often makes sense to enforce limits on a per-provider and per-model basis. You can always run your own queries on the `OpenRouterUsageTracker::DailySummary` table for more complex logic.
 
 ## Contributing
 Open an issue first to discuss.
@@ -166,7 +223,9 @@ Open an issue first to discuss.
 ## License
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
 
-## Extra
+## Architecture Diagrams
+
+### Gem Components
 
 ```mermaid
 graph TD
@@ -206,6 +265,8 @@ graph TD
     style A fill:#ccf,stroke:#333,stroke-width:2px
 ```
 
+### Logging Sequence
+
 ```mermaid
 sequenceDiagram
     participant App as Rails Host App
@@ -220,4 +281,43 @@ sequenceDiagram
     Gem->>DB: INCREMENT and SAVE DailySummary record
     DB-->>-Gem: COMMIT TRANSACTION
     Gem-->>-App: return UsageLog object
+```
+
+### Database Schema (ERD)
+
+```mermaid
+erDiagram
+    USER ||--o{ USAGE_LOG : "has_many"
+    USER ||--o{ DAILY_SUMMARY : "has_many"
+
+    USER {
+        string name
+        string email
+    }
+
+    USAGE_LOG {
+        string user_type
+        bigint user_id
+        string provider
+        string model
+        string request_id
+        integer prompt_tokens
+        integer completion_tokens
+        integer total_tokens
+        decimal cost
+        json raw_usage_response
+    }
+
+    DAILY_SUMMARY {
+        string user_type
+        bigint user_id
+        date day
+        string provider
+        string model
+        integer total_tokens
+        integer prompt_tokens
+        integer completion_tokens
+        decimal cost
+    }
+
 ```

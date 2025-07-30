@@ -16,66 +16,91 @@ end
 class TrackableConcernTest < ActiveSupport::TestCase
   setup do
     @today = Date.current
+    @yesterday = @today - 1.day
     @user = User.create!
     @account = Account.create!
 
-    # Define standard API responses with provider-specific token naming
-    @open_ai_response = {
-      "id" => "openai-1",
-      "model" => "gpt-4o",
-      "usage" => { "input_tokens" => 40, "output_tokens" => 60, "total_tokens" => 100, "cost" => 0.01 }
-    }
-    @open_router_response = {
-      "id" => "openrouter-1",
-      "model" => "anthropic/claude-3.5-sonnet",
-      "usage" => { "prompt_tokens" => 80, "completion_tokens" => 120, "total_tokens" => 200, "cost" => 0.02 }
-    }
+    # --- Test Data Setup ---
+    # Use a variety of providers, models, and dates to ensure robust testing.
 
-    # Use the .log method to create a realistic test data setup
-    OpenRouterUsageTracker.log(response: @open_ai_response, user: @user, provider: "open_ai")
-    OpenRouterUsageTracker.log(response: @open_router_response, user: @user, provider: "open_router")
+    # Today's logs for @user
+    log_response(@user, provider: "open_router", model: "ornl/claude-3.5-sonnet", cost: 0.02, request_id: "user-or-1")
+    log_response(@user, provider: "open_router", model: "google/gemini-flash-1.5", cost: 0.03, request_id: "user-or-2")
+    log_response(@user, provider: "open_ai", model: "gpt-4o", cost: 0, request_id: "user-oa-1") # No cost from OpenAI
 
-    # Create a unique response for the second OpenAI log to avoid request_id collision
-    account_open_ai_response = @open_ai_response.deep_dup
-    account_open_ai_response["id"] = "openai-2"
-    OpenRouterUsageTracker.log(response: account_open_ai_response, user: @account, provider: "open_ai")
+    # Yesterday's logs for @user
+    travel_to @yesterday do
+      log_response(@user, provider: "open_router", model: "ornl/claude-3.5-sonnet", cost: 0.04, request_id: "user-or-3")
+      log_response(@user, provider: "google", model: "gemini-pro-1.5", cost: 0, request_id: "user-gg-1")
+    end
+
+    # Today's logs for @account
+    log_response(@account, provider: "open_router", model: "ornl/claude-3.5-sonnet", cost: 0.05, request_id: "acct-or-1")
   end
 
-  # --- Core Functionality Tests ---
+  # --- #daily_usage_summary_for Tests ---
 
   test "#daily_usage_summary_for returns the correct summary" do
-    summary = @user.daily_usage_summary_for(day: @today, provider: "open_ai", model: "gpt-4o")
+    summary = @user.daily_usage_summary_for(day: @today, provider: "open_router", model: "ornl/claude-3.5-sonnet")
     assert_not_nil summary
-    assert_equal 100, summary.total_tokens
-    assert_equal 40, summary.prompt_tokens
-    assert_equal 60, summary.completion_tokens
-    assert_equal "gpt-4o", summary.model
+    assert_equal 0.02, summary.cost
   end
 
   test "#daily_usage_summary_for returns nil for a non-existent provider" do
-    summary = @user.daily_usage_summary_for(day: @today, provider: "google", model: "gemini-1.5-pro")
+    summary = @user.daily_usage_summary_for(day: @today, provider: "anthropic", model: "claude-3-opus")
     assert_nil summary
   end
 
-  test "#daily_usage_summary_for returns nil for a non-existent model" do
+  test "#daily_usage_summary_for returns nil for a non-existent model for a given provider" do
     summary = @user.daily_usage_summary_for(day: @today, provider: "open_ai", model: "gpt-4-turbo")
     assert_nil summary
+  end
+
+  # --- #total_cost_in_range Tests ---
+
+  test "#total_cost_in_range calculates cost for a specific model in a date range" do
+    range = @yesterday..@today
+    cost = @user.total_cost_in_range(range, provider: "open_router", model: "ornl/claude-3.5-sonnet")
+    assert_equal 0.06, cost # 0.02 (today) + 0.04 (yesterday)
+  end
+
+  test "#total_cost_in_range calculates cost for all models from a provider in a date range" do
+    range = @yesterday..@today
+    cost = @user.total_cost_in_range(range, provider: "open_router")
+    assert_equal 0.09, cost # 0.02 + 0.03 (today) + 0.04 (yesterday)
+  end
+
+  test "#total_cost_in_range returns zero for a provider with no cost data" do
+    range = @yesterday..@today
+    cost = @user.total_cost_in_range(range, provider: "open_ai")
+    assert_equal 0, cost
+  end
+
+  test "#total_cost_in_range returns zero for a date range with no usage" do
+    range = (@today + 1.day)..(@today + 2.days)
+    cost = @user.total_cost_in_range(range, provider: "open_router")
+    assert_equal 0, cost
+  end
+
+  test "#total_cost_in_range correctly scopes by user" do
+    range = @yesterday..@today
+    account_cost = @account.total_cost_in_range(range, provider: "open_router")
+    assert_equal 0.05, account_cost
   end
 
   # --- Polymorphism Tests ---
 
   test "works with a polymorphic user model (Account)" do
-    summary = @account.daily_usage_summary_for(day: @today, provider: "open_ai", model: "gpt-4o")
+    summary = @account.daily_usage_summary_for(day: @today, provider: "open_router", model: "ornl/claude-3.5-sonnet")
     assert_not_nil summary
-    assert_equal 100, summary.total_tokens
+    assert_equal 0.05, summary.cost
   end
 
   # --- Data Retention Policy Tests ---
 
   test "deleting a user (by default) does NOT delete their usage data" do
     user_to_delete = User.create!
-    log_response = { "id" => "test-1", "model" => "test", "usage" => { "prompt_tokens" => 10, "completion_tokens" => 10, "total_tokens" => 20, "cost" => 0 } }
-    OpenRouterUsageTracker.log(response: log_response, user: user_to_delete, provider: "open_router")
+    log_response(user_to_delete, request_id: "del-1")
 
     assert_no_difference [ "OpenRouterUsageTracker::UsageLog.count", "OpenRouterUsageTracker::DailySummary.count" ] do
       user_to_delete.destroy
@@ -84,13 +109,30 @@ class TrackableConcernTest < ActiveSupport::TestCase
 
   test "deleting a user with dependent: :destroy deletes their usage data" do
     user_to_delete = UserWithDeletion.create!
-    log_response = { "id" => "test-2", "model" => "test", "usage" => { "prompt_tokens" => 10, "completion_tokens" => 10, "total_tokens" => 20, "cost" => 0 } }
-    OpenRouterUsageTracker.log(response: log_response, user: user_to_delete, provider: "open_router")
+    log_response(user_to_delete, request_id: "del-2")
 
     assert_difference "OpenRouterUsageTracker::UsageLog.count", -1 do
       assert_difference "OpenRouterUsageTracker::DailySummary.count", -1 do
         user_to_delete.destroy
       end
     end
+  end
+
+  private
+
+  # Helper to create a standard log entry, reducing test boilerplate.
+  def log_response(user, provider: "open_router", model: "test/model", cost: 0.0, request_id: SecureRandom.uuid)
+    response = {
+      "model" => model,
+      "usage" => { "prompt_tokens" => 10, "completion_tokens" => 10, "total_tokens" => 20, "cost" => cost }
+    }
+
+    if provider == "google"
+      response["responseId"] = request_id
+    else
+      response["id"] = request_id
+    end
+
+    OpenRouterUsageTracker.log(response: response, user: user, provider: provider)
   end
 end

@@ -1,6 +1,6 @@
 # CHANGELOG
 
-## 1.0.0 (Upcoming)
+## 1.0.0 (2025-07-30)
 
 ### Breaking Changes
 
@@ -12,7 +12,13 @@
 ### Features
 
 *   **Multi-Provider/Model Usage Tracking**: Track usage and cost for each provider and model combination separately.
+*   **New `Trackable` Helper**: Added `total_cost_in_range` to the `Trackable` concern to easily calculate costs over a date range.
 *   **Explicit Date Handling**: The `daily_usage_summary_for` method now requires an explicit `day` parameter to avoid timezone-related bugs.
+
+### Improvements
+
+*   **Parser Robustness**: Parsers are now more resilient to missing or `nil` values in API responses.
+*   **Documentation**: The `README.md` and `gemspec` have been polished for clarity and now include information about multi-provider support.
 
 ## 0.2.0 (2025-06-28)
 

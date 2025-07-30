@@ -27,7 +27,7 @@ These files contain the primary business logic of the gem.
 
 *   `app/models/concerns/open_router_usage_tracker/trackable.rb`
     *   **Purpose**: A concern to be included in the host application's `User` model. It provides helper methods for querying usage data.
-    *   **Recent Changes**: The `usage_today` and `cost_exceeded?` methods have been removed. The primary method is now `daily_usage_summary_for(day:, provider:, model:)`, which requires an explicit `day` parameter. The `dependent: :destroy` option has been removed from the associations, requiring developers to configure this in their `User` model.
+    *   **Recent Changes**: The `usage_today` and `cost_exceeded?` methods have been removed. The primary methods are now `daily_usage_summary_for(day:, provider:, model:)` for specific daily checks, and `total_cost_in_range(range, provider:, model: nil)` for calculating costs over a period. The `dependent: :destroy` option has been removed from the associations, requiring developers to configure this in their `User` model.
 
 ---
 
@@ -51,6 +51,19 @@ The gem uses the standard Rails testing framework within a dummy application.
     *   **Purpose**: Contains all the tests for the gem.
     *   **Recent Changes**: Tests have been updated to reflect the new API and database schema. New tests have been added to cover the multi-provider and multi-model functionality.
 
+Notable Test Files:
+
+*   `test/open_router_usage_tracker_test.rb`
+    *  **Purpose**: Contains most tests of the gem, testing parsers, log, daily_summary, and more!
+
+*   `test/models/concerns/open_router_usage_tracker/trackable_test.rb`
+    * **Purpose**: tests trackable concern dependent behavior and method daily_usage_summary_for
+
+*   `test/models/open_router_usage_tracker/daily_summary_test.rb`
+    * **Purpose**: unit tests for daily_summary model
+
+*   `test/models/open_router_usage_tracker/usage_log_test.rb`
+    * **Purpose**: unit tests for usage_log model
 ---
 
 ## Documentation
