@@ -23,8 +23,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_26_161921) do
     t.string "model", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["user_type", "user_id", "day", "provider", "model"], name: "index_daily_summaries_on_user_and_day_and_provider_and_model", unique: true
-    t.index ["user_type", "user_id"], name: "index_open_router_daily_summaries_on_user"
+    t.index [ "user_type", "user_id", "day", "provider", "model" ], name: "index_daily_summaries_on_user_and_day_and_provider_and_model", unique: true
+    t.index [ "user_type", "user_id" ], name: "index_open_router_daily_summaries_on_user"
   end
 
   create_table "open_router_usage_logs", force: :cascade do |t|
@@ -40,8 +40,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_26_161921) do
     t.json "raw_usage_response", default: {}, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["provider", "request_id"], name: "index_open_router_usage_logs_on_provider_and_request_id", unique: true
-    t.index ["user_type", "user_id"], name: "index_open_router_usage_logs_on_user"
+    t.index [ "provider", "request_id" ], name: "index_open_router_usage_logs_on_provider_and_request_id", unique: true
+    t.index [ "user_type", "user_id" ], name: "index_open_router_usage_logs_on_user"
   end
 
   create_table "users", force: :cascade do |t|
