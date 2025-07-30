@@ -5,42 +5,32 @@ module OpenRouterUsageTracker
     extend ActiveSupport::Concern
 
     included do
-      has_many :usage_logs, as: :user, class_name: "OpenRouterUsageTracker::UsageLog", dependent: :destroy
-      has_many :daily_summaries, as: :user, class_name: "OpenRouterUsageTracker::DailySummary", dependent: :destroy
+      has_many :usage_logs, as: :user, class_name: "OpenRouterUsageTracker::UsageLog"
+      has_many :daily_summaries, as: :user, class_name: "OpenRouterUsageTracker::DailySummary"
     end
 
-    def usage_today
-      daily_summaries.find_by(day: Date.current)
-    end
-
-    def cost_exceeded?(limit:, period: :daily)
-      case period
-      when :daily
-        usage_today&.cost.to_d > limit
-      else
-        raise ArgumentError, "Unsupported period: #{period}"
-      end
-    end
-
-    # A flexible method to query usage within any time period.
+    # Finds a specific daily summary for a given day, provider, and model.
+    # This is the primary, high-performance method for usage checks.
     #
-    # Example:
-    #   user.usage_in_period(24.hours.ago..Time.current)
-    #   => { tokens: 1500, cost: 0.025 }
-    #
-    def usage_in_period(range)
-      logs_in_range = self.usage_logs.where(created_at: range)
-
-      # Use .to_i and .to_d to handle cases where there are no logs (sum returns nil)
-      total_tokens = logs_in_range.sum(:total_tokens).to_i
-      total_cost = logs_in_range.sum(:cost).to_d
-
-      { tokens: total_tokens, cost: total_cost }
+    # @param day [Date] The date to check. Pass `Time.zone.today` to be timezone-aware.
+    # @param provider [String] The provider name (e.g., 'open_router').
+    # @param model [String] The model name (e.g., 'openai/gpt-4o').
+    # @return [OpenRouterUsageTracker::DailySummary, nil]
+    def daily_usage_summary_for(day:, provider:, model:)
+      daily_summaries.find_by(day: day, provider: provider, model: model)
     end
 
-    # A convenience method for checking the last 24 hours.
-    def usage_in_last_24_hours
-      usage_in_period(24.hours.ago..Time.current)
+    # Calculates the total cost from the daily summaries within a given date range.
+    # It can be filtered by provider and, optionally, by model.
+    #
+    # @param range [Range<Date>] The date range to query (e.g., 1.month.ago.to_date..Date.current).
+    # @param provider [String] The provider name (e.g., 'open_ai').
+    # @param model [String, nil] The optional model name.
+    # @return [BigDecimal] The total cost.
+    def total_cost_in_range(range, provider:, model: nil)
+      summaries = daily_summaries.where(day: range, provider: provider)
+      summaries = summaries.where(model: model) if model
+      summaries.sum(:cost)
     end
   end
 end

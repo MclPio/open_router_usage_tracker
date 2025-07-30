@@ -6,6 +6,10 @@ module OpenRouterUsageTracker
 
     validates :day, presence: true
     validates :total_tokens, presence: true, numericality: { greater_than_or_equal_to: 0 }
+    validates :prompt_tokens, presence: true, numericality: { greater_than_or_equal_to: 0 }
+    validates :completion_tokens, presence: true, numericality: { greater_than_or_equal_to: 0 }
     validates :cost, presence: true, numericality: { greater_than_or_equal_to: 0 }
+    validates :model, presence: true
+    validates :provider, presence: true
   end
 end

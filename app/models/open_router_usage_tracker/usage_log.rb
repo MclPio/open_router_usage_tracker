@@ -6,12 +6,11 @@ module OpenRouterUsageTracker
     belongs_to :user, polymorphic: true
 
     validates :model, presence: true
-    validates :prompt_tokens, presence: true
-    validates :completion_tokens, presence: true
-    validates :total_tokens, presence: true
-    validates :cost, presence: true
-    validates :raw_usage_response, presence: true
-
-    validates :request_id, presence: true, uniqueness: true
+    validates :prompt_tokens, numericality: { greater_than_or_equal_to: 0 }
+    validates :completion_tokens, numericality: { greater_than_or_equal_to: 0 }
+    validates :total_tokens, numericality: { greater_than_or_equal_to: 0 }
+    validates :cost, numericality: { greater_than_or_equal_to: 0 }
+    validates :provider, presence: true
+    validates :request_id, presence: true, uniqueness: { scope: :provider }
   end
 end
