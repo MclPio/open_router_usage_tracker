@@ -1,8 +1,8 @@
 PATH
   remote: .
   specs:
-    open_router_usage_tracker (1.0.0)
-      rails (>= 8.0.2)
+    open_router_usage_tracker (1.0.4)
+      rails (~> 8.0)
 
 GEM
   remote: https://rubygems.org/

@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 1.0.4 (2025-11-17)
+
+*   Update gemspec dependency. `"rails", "~> 8.0"`
+
 ## 1.0.0 (2025-07-30)
 
 ### Breaking Changes
