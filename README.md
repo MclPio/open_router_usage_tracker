@@ -11,7 +11,7 @@ Managing Large Language Model (LLM) API costs is crucial for any application tha
 
 1.  **Add the gem to your Gemfile:**
     ```ruby
-    gem 'open_router_usage_tracker', '~> 1.0.0'
+    gem 'open_router_usage_tracker', '~> 1.0.4'
     ```
 
 2.  **Install and run migrations:**
@@ -44,7 +44,7 @@ Managing Large Language Model (LLM) API costs is crucial for any application tha
 Add this line to your application's Gemfile:
 
 ```ruby
-gem 'open_router_usage_tracker', '~> 1.0.0'
+gem 'open_router_usage_tracker', '~> 1.0.4'
 ```
 
 And then execute:
