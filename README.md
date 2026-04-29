@@ -139,6 +139,11 @@ The gem currently supports the following providers out-of-the-box:
 
 The gem will automatically parse the response from each provider to extract the relevant usage data. If a provider does not return a specific field (like `cost`), it will be saved as `0`.
 
+Provider notes:
+- `open_ai` supports both Responses API usage fields (`input_tokens` / `output_tokens`) and Chat Completions usage fields (`prompt_tokens` / `completion_tokens`).
+- `x_ai` supports both Chat Completions and Responses-style usage fields.
+- `anthropic` counts cache creation and cache read tokens as prompt-side tokens so daily summaries reflect total input usage.
+
 #### Providing Your Own Cost
 
 For providers that do not return cost information, you can calculate it yourself and add it to the response hash before logging. The gem will automatically detect and use a `cost` key inside the `usage` hash.

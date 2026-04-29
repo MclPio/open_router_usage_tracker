@@ -256,6 +256,24 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     assert_equal @openai_response, usage_log.raw_usage_response
   end
 
+  test "open_ai parser supports chat completions usage shape" do
+    chat_completion_response = {
+      "id" => "chatcmpl-current-shape",
+      "model" => "gpt-4o-2024-08-06",
+      "usage" => {
+        "prompt_tokens" => 1117,
+        "completion_tokens" => 46,
+        "total_tokens" => 1163
+      }
+    }
+
+    usage_log = OpenRouterUsageTracker.log(response: chat_completion_response, user: @user, provider: "open_ai")
+
+    assert_equal 1117, usage_log.prompt_tokens
+    assert_equal 46, usage_log.completion_tokens
+    assert_equal 1163, usage_log.total_tokens
+  end
+
   test "open_router response is saved in UsageLog" do
     assert_difference("OpenRouterUsageTracker::UsageLog.count") do
       OpenRouterUsageTracker.log(response: @sample_response, user: @user, provider: "open_router")
@@ -339,6 +357,21 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
                   usage_log.total_tokens
   end
 
+  test "anthropic parser includes cache tokens in prompt and total tokens" do
+    cached_response = @anthropic_response.deep_dup
+    cached_response["id"] = "msg_cached_tokens"
+    cached_response["usage"]["input_tokens"] = 410
+    cached_response["usage"]["cache_creation_input_tokens"] = 20
+    cached_response["usage"]["cache_read_input_tokens"] = 30
+    cached_response["usage"]["output_tokens"] = 585
+
+    usage_log = OpenRouterUsageTracker.log(response: cached_response, user: @user, provider: "anthropic")
+
+    assert_equal 460, usage_log.prompt_tokens
+    assert_equal 585, usage_log.completion_tokens
+    assert_equal 1045, usage_log.total_tokens
+  end
+
   test "logs google response" do
     usage_log = OpenRouterUsageTracker.log(response: @google_response, user: @user, provider: "google")
 
@@ -364,6 +397,25 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     assert_equal @user, usage_log.user
     assert_equal @x_ai_response.dig("id"), usage_log.request_id
     assert_equal @x_ai_response, usage_log.raw_usage_response
+  end
+
+  test "logs XAi responses api usage shape" do
+    responses_api_response = {
+      "id" => "xai-resp-123",
+      "object" => "response",
+      "model" => "grok-4",
+      "usage" => {
+        "input_tokens" => 125,
+        "output_tokens" => 48,
+        "total_tokens" => 173
+      }
+    }
+
+    usage_log = OpenRouterUsageTracker.log(response: responses_api_response, user: @user, provider: "x_ai")
+
+    assert_equal 125, usage_log.prompt_tokens
+    assert_equal 48, usage_log.completion_tokens
+    assert_equal 173, usage_log.total_tokens
   end
 
   # <-- PROVIDER TESTS -->

@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## Unreleased
+
+*   Support both Responses API and Chat Completions usage shapes for OpenAI and xAI.
+*   Count Anthropic cache creation/read tokens in prompt and total token accounting.
+*   Make daily summary updates safer under concurrent logging.
+*   Prevent install generator migration timestamp collisions when generators are run in quick succession.
+*   Add `pipeline.md` and `agent.md` to document the product hardening plan and autonomous engineering loop.
+
 ## 1.0.4 (2025-11-17)
 
 *   Update gemspec dependency. `"rails", "~> 8.0"`
