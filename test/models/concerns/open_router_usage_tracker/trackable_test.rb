@@ -43,7 +43,7 @@ class TrackableConcernTest < ActiveSupport::TestCase
   test "#daily_usage_summary_for returns the correct summary" do
     summary = @user.daily_usage_summary_for(day: @today, provider: "open_router", model: "ornl/claude-3.5-sonnet")
     assert_not_nil summary
-    assert_equal 0.02, summary.cost
+    assert_equal 0.02, summary.cost_amount
   end
 
   test "#daily_usage_summary_for returns nil for a non-existent provider" do
@@ -88,12 +88,68 @@ class TrackableConcernTest < ActiveSupport::TestCase
     assert_equal 0.05, account_cost
   end
 
+  test "#total_tokens_in_range calculates tokens for a provider" do
+    range = @yesterday..@today
+    tokens = @user.total_tokens_in_range(range, provider: "open_router")
+    assert_equal 60, tokens
+  end
+
+  test "#request_count_in_range counts usage logs by occurred_at" do
+    range = @yesterday..@today
+    request_count = @user.request_count_in_range(range, provider: "open_router")
+    assert_equal 3, request_count
+  end
+
+  test "#request_count_in_range preserves precise time ranges" do
+    user = User.create!
+    early_time = Time.zone.local(2026, 4, 1, 8, 0, 0)
+    late_time = Time.zone.local(2026, 4, 1, 20, 0, 0)
+
+    log_response(user, model: "time-window/model", request_id: "time-window-early", occurred_at: early_time)
+    log_response(user, model: "time-window/model", request_id: "time-window-late", occurred_at: late_time)
+
+    request_count = user.request_count_in_range(
+      Time.zone.local(2026, 4, 1, 19, 0, 0)..Time.zone.local(2026, 4, 1, 21, 0, 0),
+      provider: "open_router",
+      model: "time-window/model"
+    )
+
+    assert_equal 1, request_count
+  end
+
+  test "#request_count_in_range expands plain date ranges to full days" do
+    user = User.create!
+    early_time = Time.zone.local(2026, 4, 1, 8, 0, 0)
+    late_time = Time.zone.local(2026, 4, 1, 20, 0, 0)
+
+    log_response(user, model: "date-window/model", request_id: "date-window-early", occurred_at: early_time)
+    log_response(user, model: "date-window/model", request_id: "date-window-late", occurred_at: late_time)
+
+    request_count = user.request_count_in_range(
+      Date.new(2026, 4, 1)..Date.new(2026, 4, 1),
+      provider: "open_router",
+      model: "date-window/model"
+    )
+
+    assert_equal 2, request_count
+  end
+
+  test "#usage_totals_in_range returns token and cost totals" do
+    range = @yesterday..@today
+    totals = @user.usage_totals_in_range(range, provider: "open_router")
+
+    assert_equal 30, totals[:input_tokens]
+    assert_equal 30, totals[:output_tokens]
+    assert_equal 60, totals[:total_tokens]
+    assert_equal 0.09, totals[:cost_amount]
+  end
+
   # --- Polymorphism Tests ---
 
   test "works with a polymorphic user model (Account)" do
     summary = @account.daily_usage_summary_for(day: @today, provider: "open_router", model: "ornl/claude-3.5-sonnet")
     assert_not_nil summary
-    assert_equal 0.05, summary.cost
+    assert_equal 0.05, summary.cost_amount
   end
 
   # --- Data Retention Policy Tests ---
@@ -121,18 +177,27 @@ class TrackableConcernTest < ActiveSupport::TestCase
   private
 
   # Helper to create a standard log entry, reducing test boilerplate.
-  def log_response(user, provider: "open_router", model: "test/model", cost: 0.0, request_id: SecureRandom.uuid)
-    response = {
-      "model" => model,
-      "usage" => { "prompt_tokens" => 10, "completion_tokens" => 10, "total_tokens" => 20, "cost" => cost }
-    }
+  def log_response(user, provider: "open_router", model: "test/model", cost: 0.0, request_id: SecureRandom.uuid, occurred_at: Time.current)
+    response =
+      if provider == "google"
+        {
+          "model" => model,
+          "responseId" => request_id,
+          "usageMetadata" => {
+            "promptTokenCount" => 10,
+            "candidatesTokenCount" => 10,
+            "totalTokenCount" => 20
+          },
+          "usage" => { "cost" => cost }
+        }
+      else
+        {
+          "id" => request_id,
+          "model" => model,
+          "usage" => { "prompt_tokens" => 10, "completion_tokens" => 10, "total_tokens" => 20, "cost" => cost }
+        }
+      end
 
-    if provider == "google"
-      response["responseId"] = request_id
-    else
-      response["id"] = request_id
-    end
-
-    OpenRouterUsageTracker.log(response: response, user: user, provider: provider)
+    OpenRouterUsageTracker.log(response: response, user: user, provider: provider, occurred_at: occurred_at)
   end
 end

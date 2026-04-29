@@ -1,24 +1,27 @@
-# SQLite. Versions 3.8.0 and up are supported.
-#   gem install sqlite3
-#
-#   Ensure the SQLite 3 gem is defined in your Gemfile
-#   gem "sqlite3"
-#
 default: &default
-  adapter: sqlite3
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+<% if ENV["DB_ADAPTER"] == "postgresql" %>
+  adapter: postgresql
+  url: <%= ENV.fetch("DATABASE_URL") %>
+<% else %>
+  adapter: sqlite3
   timeout: 5000
+<% end %>
 
 development:
   <<: *default
+<% unless ENV["DB_ADAPTER"] == "postgresql" %>
   database: storage/development.sqlite3
+<% end %>
 
 # Warning: The database defined as "test" will be erased and
 # re-generated from your development database when you run "rake".
 # Do not set this db to the same as development or production.
 test:
   <<: *default
+<% unless ENV["DB_ADAPTER"] == "postgresql" %>
   database: storage/test.sqlite3
+<% end %>
 
 
 # SQLite3 write its data on the local filesystem, as such it requires
@@ -29,4 +32,6 @@ test:
 # ensure the database is located in a persisted volume.
 production:
   <<: *default
+<% unless ENV["DB_ADAPTER"] == "postgresql" %>
   # database: path/to/persistent/storage/production.sqlite3
+<% end %>

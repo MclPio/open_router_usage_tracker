@@ -1,0 +1,24 @@
+{
+  "id": "or-usage-001",
+  "object": "chat.completion",
+  "model": "openai/gpt-4o",
+  "choices": [],
+  "usage": {
+    "prompt_tokens": 194,
+    "completion_tokens": 2,
+    "total_tokens": 196,
+    "cost": 0.95,
+    "prompt_tokens_details": {
+      "cached_tokens": 12,
+      "cache_write_tokens": 100,
+      "audio_tokens": 0
+    },
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "cost_details": {
+      "upstream_inference_cost": 19
+    }
+  }
+}
+

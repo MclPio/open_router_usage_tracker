@@ -42,11 +42,23 @@ module OpenRouterUsageTracker
       summary = @user.daily_summaries.find_by(day: @today)
       assert_not_nil summary
       assert_equal 30, summary.total_tokens
-      assert_equal 0.01, summary.cost
+      assert_equal 0.01, summary.cost_amount
+      assert_equal "credits", summary.cost_currency
+      assert_equal "provider", summary.cost_source
     end
 
     test ".log updates an existing daily summary record" do
-      summary = DailySummary.create!(user: @user, day: @today, total_tokens: 50, cost: 0.05, model: "super-cool")
+      summary = DailySummary.create!(
+        user: @user,
+        day: @today,
+        input_tokens: 20,
+        output_tokens: 30,
+        total_tokens: 50,
+        cost_amount: 0.05,
+        cost_currency: "credits",
+        cost_source: "provider",
+        model: "super-cool"
+      )
 
       api_response = {
         "id" => "gen-2", "model" => "super-cool",
@@ -59,7 +71,7 @@ module OpenRouterUsageTracker
 
       summary.reload
       assert_equal 80, summary.total_tokens # 50 + 30
-      assert_equal 0.06, summary.cost     # 0.05 + 0.01
+      assert_equal 0.06, summary.cost_amount     # 0.05 + 0.01
     end
 
     test ".log handles multiple concurrent requests correctly" do
@@ -75,11 +87,11 @@ module OpenRouterUsageTracker
       summary = @user.daily_summaries.find_by(day: @today)
       assert_not_nil summary
       assert_equal 25, summary.total_tokens
-      assert_equal 0.03, summary.cost
+      assert_equal 0.03, summary.cost_amount
       assert_equal 1, @user.daily_summaries.count
     end
 
-    test "saves prompt and completion tokens" do
+    test "saves input and output tokens" do
       api_response = {
         "id" => "gen-1", "model" => "test/model",
         "usage" => { "prompt_tokens" => 10, "completion_tokens" => 20, "total_tokens" => 30, "cost" => 0.01 }
@@ -91,8 +103,31 @@ module OpenRouterUsageTracker
 
       summary = @user.daily_summaries.find_by(day: @today)
       assert_not_nil summary
-      assert_equal 10, summary.prompt_tokens
-      assert_equal 20, summary.completion_tokens
+      assert_equal 10, summary.input_tokens
+      assert_equal 20, summary.output_tokens
+    end
+
+    test "aggregates core usage details" do
+      api_response = {
+        "id" => "gen-details", "model" => "test/model",
+        "usage" => {
+          "prompt_tokens" => 10,
+          "completion_tokens" => 20,
+          "total_tokens" => 30,
+          "cost" => 0.01,
+          "prompt_tokens_details" => { "cached_tokens" => 3, "cache_write_tokens" => 4 },
+          "completion_tokens_details" => { "reasoning_tokens" => 5 }
+        }
+      }
+
+      OpenRouterUsageTracker.log(response: api_response, user: @user)
+
+      summary = @user.daily_summaries.find_by(day: @today)
+      assert_equal 3, summary.cache_read_input_tokens
+      assert_equal 4, summary.cache_write_input_tokens
+      assert_equal 5, summary.reasoning_output_tokens
+      assert_equal 3, summary.usage_details.dig("prompt_tokens_details", "cached_tokens")
+      assert_equal 5, summary.usage_details.dig("completion_tokens_details", "reasoning_tokens")
     end
 
     test "can save and update 2 different providers on same day" do

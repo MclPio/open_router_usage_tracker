@@ -15,7 +15,7 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ruby-3.4.4
+          ruby-version: "3.4"
           bundler-cache: true
 
       - name: Lint code for consistent style
@@ -23,16 +23,41 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    name: Ruby ${{ matrix.ruby }} / Rails ${{ matrix.rails }} / ${{ matrix.database }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ruby: "3.2"
+            rails: "~> 8.0.0"
+            database: sqlite3
+          - ruby: "3.3"
+            rails: "~> 8.1.0"
+            database: sqlite3
+          - ruby: "3.4"
+            rails: "~> 8.1.0"
+            database: sqlite3
+          - ruby: "3.4"
+            rails: "~> 8.1.0"
+            database: postgresql
 
-    # services:
-    #  redis:
-    #    image: redis
-    #    ports:
-    #      - 6379:6379
-    #    options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: open_router_usage_tracker_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d open_router_usage_tracker_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Install packages
-        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y build-essential git libyaml-dev pkg-config google-chrome-stable
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y build-essential git libpq-dev libyaml-dev pkg-config
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -40,14 +65,22 @@ jobs:
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: ruby-3.4.4
+          ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+        env:
+          DB_ADAPTER: ${{ matrix.database }}
+          RAILS_VERSION: ${{ matrix.rails }}
 
       - name: Run tests
         env:
+          DB_ADAPTER: ${{ matrix.database }}
           RAILS_ENV: test
-          # REDIS_URL: redis://localhost:6379/0
-        run: bin/test
+          RAILS_VERSION: ${{ matrix.rails }}
+        run: |
+          if [ "${{ matrix.database }}" = "postgresql" ]; then
+            export DATABASE_URL=postgres://postgres:postgres@localhost:5432/open_router_usage_tracker_test
+          fi
+          bin/test
 
       - name: Keep screenshots from failed system tests
         uses: actions/upload-artifact@v4

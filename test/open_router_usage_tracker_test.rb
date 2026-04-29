@@ -247,13 +247,15 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     usage_log = OpenRouterUsageTracker::UsageLog.find_by(request_id: @openai_response["id"])
 
     assert_equal @openai_response.dig("model"), usage_log.model
-    assert_equal @openai_response.dig("usage", "input_tokens"), usage_log.prompt_tokens
-    assert_equal @openai_response.dig("usage", "output_tokens"), usage_log.completion_tokens
+    assert_equal @openai_response.dig("usage", "input_tokens"), usage_log.input_tokens
+    assert_equal @openai_response.dig("usage", "output_tokens"), usage_log.output_tokens
     assert_equal @openai_response.dig("usage", "total_tokens"), usage_log.total_tokens
-    assert_equal 0, usage_log.cost
+    assert_equal 0, usage_log.cost_amount
+    assert_equal "none", usage_log.cost_source
     assert_equal @user, usage_log.user
     assert_equal @openai_response.dig("id"), usage_log.request_id
     assert_equal @openai_response, usage_log.raw_usage_response
+    assert_equal @openai_response.dig("usage", "input_tokens_details"), usage_log.usage_details["input_tokens_details"]
   end
 
   test "open_ai parser supports chat completions usage shape" do
@@ -269,8 +271,8 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
 
     usage_log = OpenRouterUsageTracker.log(response: chat_completion_response, user: @user, provider: "open_ai")
 
-    assert_equal 1117, usage_log.prompt_tokens
-    assert_equal 46, usage_log.completion_tokens
+    assert_equal 1117, usage_log.input_tokens
+    assert_equal 46, usage_log.output_tokens
     assert_equal 1163, usage_log.total_tokens
   end
 
@@ -282,10 +284,12 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     usage_log = OpenRouterUsageTracker::UsageLog.find_by(request_id: @sample_response["id"])
 
     assert_equal @sample_response.dig("model"), usage_log.model
-    assert_equal @sample_response.dig("usage", "prompt_tokens"), usage_log.prompt_tokens
-    assert_equal @sample_response.dig("usage", "completion_tokens"), usage_log.completion_tokens
+    assert_equal @sample_response.dig("usage", "prompt_tokens"), usage_log.input_tokens
+    assert_equal @sample_response.dig("usage", "completion_tokens"), usage_log.output_tokens
     assert_equal @sample_response.dig("usage", "total_tokens"), usage_log.total_tokens
-    assert_equal @sample_response.dig("usage", "cost"), usage_log.cost
+    assert_equal @sample_response.dig("usage", "cost"), usage_log.cost_amount
+    assert_equal "credits", usage_log.cost_currency
+    assert_equal "provider", usage_log.cost_source
     assert_equal @user, usage_log.user
     assert_equal @sample_response.dig("id"), usage_log.request_id
     assert_equal @sample_response, usage_log.raw_usage_response
@@ -299,10 +303,10 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     summary = OpenRouterUsageTracker::DailySummary.last
     assert_equal @user, summary.user
     assert_equal Date.current, summary.day
-    assert_equal @sample_response.dig("usage", "prompt_tokens"), summary.prompt_tokens
-    assert_equal @sample_response.dig("usage", "completion_tokens"), summary.completion_tokens
+    assert_equal @sample_response.dig("usage", "prompt_tokens"), summary.input_tokens
+    assert_equal @sample_response.dig("usage", "completion_tokens"), summary.output_tokens
     assert_equal @sample_response.dig("usage", "total_tokens"), summary.total_tokens
-    assert_equal @sample_response.dig("usage", "cost"), summary.cost
+    assert_equal @sample_response.dig("usage", "cost"), summary.cost_amount
   end
 
   test "updates an existing DailySummary on subsequent calls" do
@@ -321,10 +325,10 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     assert_equal @user, summary.user
 
     # Expected = openai_response + openai_response_1
-    assert_equal @openai_response.dig("usage", "input_tokens") + @openai_response_1.dig("usage", "input_tokens"), summary.prompt_tokens
-    assert_equal @openai_response.dig("usage", "output_tokens") + @openai_response_1.dig("usage", "output_tokens"), summary.completion_tokens
+    assert_equal @openai_response.dig("usage", "input_tokens") + @openai_response_1.dig("usage", "input_tokens"), summary.input_tokens
+    assert_equal @openai_response.dig("usage", "output_tokens") + @openai_response_1.dig("usage", "output_tokens"), summary.output_tokens
     assert_equal @openai_response.dig("usage", "total_tokens") + @openai_response_1.dig("usage", "total_tokens"), summary.total_tokens
-    assert_equal 0, summary.cost # 0 cost because open_ai does not return cost
+    assert_equal 0, summary.cost_amount # 0 cost because open_ai does not return cost
   end
 
   test "stores raw response by default" do
@@ -342,6 +346,62 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     assert_equal({}, usage_log.raw_usage_response)
   end
 
+  test "stores normalized usage details when raw response storage is disabled" do
+    response = @sample_response.deep_dup
+    response["id"] = "or-details-without-raw"
+    response["usage"]["prompt_tokens_details"] = { "cached_tokens" => 3, "cache_write_tokens" => 4 }
+    response["usage"]["completion_tokens_details"] = { "reasoning_tokens" => 5 }
+
+    usage_log = OpenRouterUsageTracker.log(response: response, user: @user, store_raw_response: false)
+
+    assert_equal({}, usage_log.raw_usage_response)
+    assert_equal 3, usage_log.cache_read_input_tokens
+    assert_equal 4, usage_log.cache_write_input_tokens
+    assert_equal 5, usage_log.reasoning_output_tokens
+    assert_equal 3, usage_log.usage_details.dig("prompt_tokens_details", "cached_tokens")
+    assert_equal 5, usage_log.usage_details.dig("completion_tokens_details", "reasoning_tokens")
+  end
+
+  test "uses occurred_at for usage log timestamp and daily summary day" do
+    response = @sample_response.deep_dup
+    response["id"] = "or-occurred-at"
+    occurred_at = Time.zone.local(2026, 4, 1, 23, 30, 0)
+
+    usage_log = OpenRouterUsageTracker.log(response: response, user: @user, occurred_at: occurred_at)
+
+    assert_equal occurred_at.to_i, usage_log.occurred_at.to_i
+    assert_not_nil @user.daily_usage_summary_for(
+      day: Date.new(2026, 4, 1),
+      provider: "open_router",
+      model: "openai/gpt-4o"
+    )
+  end
+
+  test "can return existing usage log for duplicate requests" do
+    first_log = OpenRouterUsageTracker.log(response: @sample_response, user: @user)
+
+    assert_no_difference [ "OpenRouterUsageTracker::UsageLog.count", "OpenRouterUsageTracker::DailySummary.count" ] do
+      second_log = OpenRouterUsageTracker.log(response: @sample_response, user: @user, on_duplicate: :return_existing)
+      assert_equal first_log, second_log
+    end
+  end
+
+  test "can ignore duplicate requests" do
+    OpenRouterUsageTracker.log(response: @sample_response, user: @user)
+
+    assert_no_difference [ "OpenRouterUsageTracker::UsageLog.count", "OpenRouterUsageTracker::DailySummary.count" ] do
+      assert_nil OpenRouterUsageTracker.log(response: @sample_response, user: @user, on_duplicate: :ignore)
+    end
+  end
+
+  test "raises for unsupported duplicate policies" do
+    error = assert_raises(ArgumentError) do
+      OpenRouterUsageTracker.log(response: @sample_response, user: @user, on_duplicate: :surprise)
+    end
+
+    assert_match "Unsupported duplicate policy", error.message
+  end
+
   test "logs anthropic response" do
     usage_log = OpenRouterUsageTracker.log(response: @anthropic_response, user: @user, provider: "anthropic")
 
@@ -350,8 +410,8 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     assert_equal "anthropic", usage_log.provider
     assert_equal @user, usage_log.user
     assert_equal @anthropic_response, usage_log.raw_usage_response
-    assert_equal @anthropic_response.dig("usage", "input_tokens"), usage_log.prompt_tokens
-    assert_equal @anthropic_response.dig("usage", "output_tokens"), usage_log.completion_tokens
+    assert_equal @anthropic_response.dig("usage", "input_tokens"), usage_log.input_tokens
+    assert_equal @anthropic_response.dig("usage", "output_tokens"), usage_log.output_tokens
     assert_equal (@anthropic_response.dig("usage", "input_tokens").to_i +
                   @anthropic_response.dig("usage", "output_tokens").to_i),
                   usage_log.total_tokens
@@ -367,9 +427,11 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
 
     usage_log = OpenRouterUsageTracker.log(response: cached_response, user: @user, provider: "anthropic")
 
-    assert_equal 460, usage_log.prompt_tokens
-    assert_equal 585, usage_log.completion_tokens
+    assert_equal 460, usage_log.input_tokens
+    assert_equal 585, usage_log.output_tokens
     assert_equal 1045, usage_log.total_tokens
+    assert_equal 20, usage_log.cache_write_input_tokens
+    assert_equal 30, usage_log.cache_read_input_tokens
   end
 
   test "logs google response" do
@@ -380,19 +442,21 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
     assert_equal "google", usage_log.provider
     assert_equal @user, usage_log.user
     assert_equal @google_response, usage_log.raw_usage_response
-    assert_equal @google_response.dig("usageMetadata", "promptTokenCount"), usage_log.prompt_tokens
-    assert_equal @google_response.dig("usageMetadata", "candidatesTokenCount"), usage_log.completion_tokens
+    assert_equal @google_response.dig("usageMetadata", "promptTokenCount"), usage_log.input_tokens
+    assert_equal @google_response.dig("usageMetadata", "candidatesTokenCount"), usage_log.output_tokens
     assert_equal @google_response.dig("usageMetadata", "totalTokenCount"), usage_log.total_tokens
+    assert_equal @google_response.dig("usageMetadata", "cachedContentTokenCount"), usage_log.cache_read_input_tokens
+    assert_equal @google_response.dig("usageMetadata", "thoughtsTokenCount"), usage_log.reasoning_output_tokens
   end
 
   test "logs XAi response" do
     usage_log = OpenRouterUsageTracker.log(response: @x_ai_response, user: @user, provider: "x_ai")
 
     assert_equal @x_ai_response.dig("model"), usage_log.model
-    assert_equal @x_ai_response.dig("usage", "prompt_tokens"), usage_log.prompt_tokens
-    assert_equal @x_ai_response.dig("usage", "completion_tokens"), usage_log.completion_tokens
+    assert_equal @x_ai_response.dig("usage", "prompt_tokens"), usage_log.input_tokens
+    assert_equal @x_ai_response.dig("usage", "completion_tokens"), usage_log.output_tokens
     assert_equal @x_ai_response.dig("usage", "total_tokens"), usage_log.total_tokens
-    assert_equal 0, usage_log.cost
+    assert_equal 0, usage_log.cost_amount
     assert_equal "x_ai", usage_log.provider
     assert_equal @user, usage_log.user
     assert_equal @x_ai_response.dig("id"), usage_log.request_id
@@ -413,8 +477,8 @@ class OpenRouterUsageTrackerTest < ActiveSupport::TestCase
 
     usage_log = OpenRouterUsageTracker.log(response: responses_api_response, user: @user, provider: "x_ai")
 
-    assert_equal 125, usage_log.prompt_tokens
-    assert_equal 48, usage_log.completion_tokens
+    assert_equal 125, usage_log.input_tokens
+    assert_equal 48, usage_log.output_tokens
     assert_equal 173, usage_log.total_tokens
   end
 

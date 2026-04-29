@@ -25,16 +25,16 @@ module OpenRouterUsageTracker
     end
 
     # --- Tests for numericality validations ---
-    test "is invalid with negative prompt_tokens" do
-      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(prompt_tokens: -1))
+    test "is invalid with negative input_tokens" do
+      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(input_tokens: -1))
       assert_not log.valid?
-      assert_includes log.errors[:prompt_tokens], "must be greater than or equal to 0"
+      assert_includes log.errors[:input_tokens], "must be greater than or equal to 0"
     end
 
-    test "is invalid with negative completion_tokens" do
-      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(completion_tokens: -1))
+    test "is invalid with negative output_tokens" do
+      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(output_tokens: -1))
       assert_not log.valid?
-      assert_includes log.errors[:completion_tokens], "must be greater than or equal to 0"
+      assert_includes log.errors[:output_tokens], "must be greater than or equal to 0"
     end
 
     test "is invalid with negative total_tokens" do
@@ -43,10 +43,16 @@ module OpenRouterUsageTracker
       assert_includes log.errors[:total_tokens], "must be greater than or equal to 0"
     end
 
-    test "is invalid with negative cost" do
-      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(cost: -0.001))
+    test "is invalid with negative cost_amount" do
+      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(cost_amount: -0.001))
       assert_not log.valid?
-      assert_includes log.errors[:cost], "must be greater than or equal to 0"
+      assert_includes log.errors[:cost_amount], "must be greater than or equal to 0"
+    end
+
+    test "is invalid with an unsupported cost_source" do
+      log = OpenRouterUsageTracker::UsageLog.new(valid_attributes.merge(cost_source: "guessed"))
+      assert_not log.valid?
+      assert_includes log.errors[:cost_source], "is not included in the list"
     end
 
     test "is invalid without a request_id" do
@@ -79,12 +85,19 @@ module OpenRouterUsageTracker
     def valid_attributes
       {
         model: @response["model"],
-        prompt_tokens: @response.dig("usage", "prompt_tokens"),
-        completion_tokens: @response.dig("usage", "completion_tokens"),
+        input_tokens: @response.dig("usage", "prompt_tokens"),
+        output_tokens: @response.dig("usage", "completion_tokens"),
         total_tokens: @response.dig("usage", "total_tokens"),
-        cost: @response.dig("usage", "cost"),
+        cache_read_input_tokens: 0,
+        cache_write_input_tokens: 0,
+        reasoning_output_tokens: 0,
+        cost_amount: @response.dig("usage", "cost"),
+        cost_source: "provider",
+        cost_currency: "credits",
         request_id: @response["id"],
         user: @user,
+        usage_details: {},
+        occurred_at: Time.current,
         raw_usage_response: @response
       }
     end

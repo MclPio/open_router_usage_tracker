@@ -1,0 +1,19 @@
+{
+  "id": "resp-openai-001",
+  "object": "response",
+  "created_at": 1741476777,
+  "model": "gpt-5.1",
+  "output": [],
+  "usage": {
+    "input_tokens": 139,
+    "input_tokens_details": {
+      "cached_tokens": 7
+    },
+    "output_tokens": 438,
+    "output_tokens_details": {
+      "reasoning_tokens": 64
+    },
+    "total_tokens": 577
+  }
+}
+

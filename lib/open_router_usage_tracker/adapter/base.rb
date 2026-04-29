@@ -1,13 +1,9 @@
 module OpenRouterUsageTracker
-  require "open_router_usage_tracker/parsers/open_ai"
-  require "open_router_usage_tracker/parsers/open_router"
-  require "open_router_usage_tracker/parsers/google"
-  require "open_router_usage_tracker/parsers/anthropic"
-  require "open_router_usage_tracker/parsers/x_ai"
+  require "open_router_usage_tracker/persistence/usage_recorder"
 
   module Adapter
     module Base
-      SUPPORTED_PROVIDERS = [ "open_ai", "open_router", "google", "anthropic", "x_ai" ].freeze
+      SUPPORTED_PROVIDERS = OpenRouterUsageTracker::Providers.supported_provider_names
 
       # Logs an API usage event, creating a UsageLog and updating the DailySummary.
       # This is the primary method for recording usage data.
@@ -18,8 +14,13 @@ module OpenRouterUsageTracker
       #   Defaults to 'open_router'.
       # @param store_raw_response [Boolean] If false, an empty hash will be stored in the
       #   raw_usage_response column. Defaults to true.
+      # @param occurred_at [Time, DateTime, Date] When the provider request occurred.
+      #   Defaults to Time.current.
+      # @param on_duplicate [Symbol] Duplicate request behavior: :raise, :return_existing, or :ignore.
+      #   Defaults to :raise.
       #
-      # @return [OpenRouterUsageTracker::UsageLog] The newly created usage log record.
+      # @return [OpenRouterUsageTracker::UsageLog, nil] The created usage log, existing usage log,
+      #   or nil when on_duplicate is :ignore.
       #
       # @example Log a call and store the raw response
       #   OpenRouterUsageTracker.log(response: api_response, user: current_user)
@@ -27,41 +28,15 @@ module OpenRouterUsageTracker
       # @example Log a call without storing the raw response
       #   OpenRouterUsageTracker.log(response: api_response, user: current_user, store_raw_response: false)
       #
-      def log(response:, user:, provider: "open_router", store_raw_response: true)
-        unless SUPPORTED_PROVIDERS.include?(provider)
-          raise ArgumentError.new("Unsupported provider: #{provider}. Supported providers are: #{SUPPORTED_PROVIDERS.join(', ')}")
-        end
-
-        parser_class = "OpenRouterUsageTracker::Parsers::#{provider.camelize}".constantize
-        attributes = parser_class.parse(response)
-        attributes[:user] = user
-        attributes[:raw_usage_response] = {} unless store_raw_response
-        attributes[:provider] = provider
-
-        ApplicationRecord.transaction do
-          usage_log = OpenRouterUsageTracker::UsageLog.create!(attributes)
-          update_daily_summary(usage_log)
-          usage_log
-        end
-      end
-
-      private
-
-      def update_daily_summary(usage_log)
-        summary = OpenRouterUsageTracker::DailySummary.create_or_find_by!(
-          user: usage_log.user,
-          day: Date.current,
-          provider: usage_log.provider,
-          model: usage_log.model
+      def log(response:, user:, provider: "open_router", store_raw_response: true, occurred_at: Time.current, on_duplicate: :raise)
+        OpenRouterUsageTracker::Persistence::UsageRecorder.call(
+          response: response,
+          user: user,
+          provider: provider,
+          store_raw_response: store_raw_response,
+          occurred_at: occurred_at,
+          on_duplicate: on_duplicate
         )
-
-        summary.with_lock do
-          summary.total_tokens += usage_log.total_tokens
-          summary.cost += usage_log.cost
-          summary.prompt_tokens += usage_log.prompt_tokens
-          summary.completion_tokens += usage_log.completion_tokens
-          summary.save!
-        end
       end
     end
   end

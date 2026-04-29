@@ -30,7 +30,51 @@ module OpenRouterUsageTracker
     def total_cost_in_range(range, provider:, model: nil)
       summaries = daily_summaries.where(day: range, provider: provider)
       summaries = summaries.where(model: model) if model
-      summaries.sum(:cost)
+      summaries.sum(:cost_amount)
+    end
+
+    def total_tokens_in_range(range, provider:, model: nil)
+      summaries = daily_summaries.where(day: range, provider: provider)
+      summaries = summaries.where(model: model) if model
+      summaries.sum(:total_tokens)
+    end
+
+    def request_count_in_range(range, provider:, model: nil)
+      logs = usage_logs.where(occurred_at: time_range_for(range), provider: provider)
+      logs = logs.where(model: model) if model
+      logs.count
+    end
+
+    def usage_totals_in_range(range, provider:, model: nil)
+      summaries = daily_summaries.where(day: range, provider: provider)
+      summaries = summaries.where(model: model) if model
+
+      {
+        input_tokens: summaries.sum(:input_tokens),
+        output_tokens: summaries.sum(:output_tokens),
+        total_tokens: summaries.sum(:total_tokens),
+        cache_read_input_tokens: summaries.sum(:cache_read_input_tokens),
+        cache_write_input_tokens: summaries.sum(:cache_write_input_tokens),
+        reasoning_output_tokens: summaries.sum(:reasoning_output_tokens),
+        cost_amount: summaries.sum(:cost_amount)
+      }
+    end
+
+    private
+
+    def time_range_for(range)
+      range_start = range.begin
+      range_end = range.end
+
+      if date_only?(range_start) && date_only?(range_end)
+        range_start.beginning_of_day..range_end.end_of_day
+      else
+        range
+      end
+    end
+
+    def date_only?(value)
+      value.is_a?(Date) && !value.respond_to?(:hour)
     end
   end
 end

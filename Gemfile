@@ -3,6 +3,9 @@ source "https://rubygems.org"
 # Specify your gem's dependencies in open_router_usage_tracker.gemspec.
 gemspec
 
+gem "rails", ENV["RAILS_VERSION"] unless ENV["RAILS_VERSION"].to_s.empty?
+
+gem "pg", require: false if ENV["DB_ADAPTER"] == "postgresql"
 gem "puma"
 
 gem "sqlite3"

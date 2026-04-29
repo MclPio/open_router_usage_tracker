@@ -1,0 +1,17 @@
+{
+  "id": "msg-anthropic-001",
+  "type": "message",
+  "role": "assistant",
+  "content": [],
+  "model": "claude-opus-4-1-20250805",
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 410,
+    "cache_creation_input_tokens": 20,
+    "cache_read_input_tokens": 30,
+    "output_tokens": 585,
+    "service_tier": "priority"
+  }
+}
+

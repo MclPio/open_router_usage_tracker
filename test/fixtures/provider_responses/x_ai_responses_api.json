@@ -1,0 +1,18 @@
+{
+  "id": "xai-resp-001",
+  "object": "response",
+  "model": "grok-4",
+  "output": [],
+  "usage": {
+    "input_tokens": 125,
+    "output_tokens": 48,
+    "total_tokens": 173,
+    "input_tokens_details": {
+      "cached_tokens": 98
+    },
+    "output_tokens_details": {
+      "reasoning_tokens": 0
+    }
+  }
+}
+
