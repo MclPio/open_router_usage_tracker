@@ -2,6 +2,8 @@
 
 This guide is for Rails application developers integrating `open_router_usage_tracker`.
 
+For full Rails app examples, initializer placement, service object patterns, and accepted argument types, see [Integration Examples](integration_examples.md).
+
 ## Install
 
 ```ruby

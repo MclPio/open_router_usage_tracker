@@ -17,6 +17,7 @@ All notable changes to this project are documented here. The format follows the 
 - Raw response redaction, raw response pruning, daily summary rebuild maintenance, and `log.open_router_usage_tracker` notifications.
 - CI coverage for Rails 8.0/8.1, Ruby 3.2-3.4, SQLite, and PostgreSQL.
 - Focused documentation under `docs/`.
+- Detailed integration examples and v2 release review checklist documentation.
 
 ### Changed
 

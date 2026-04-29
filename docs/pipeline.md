@@ -85,7 +85,9 @@ The docs have been split so the README stays short and focused:
 
 - `README.md`: entry point.
 - `docs/usage.md`: host app integration.
+- `docs/integration_examples.md`: real integration examples and public API argument types.
 - `docs/architecture.md`: contributor codebase guide.
 - `docs/release.md`: release policy and checklist.
+- `docs/v2_release_review.md`: pre-release repository review and dummy-app test checklist.
 - `docs/agent.md`: autonomous engineering workflow.
 - `docs/pipeline.md`: this historical plan.

@@ -34,10 +34,11 @@ Before publishing:
 1. Run `bin/test`.
 2. Run `env RUBOCOP_CACHE_ROOT=/private/tmp/rubocop_cache bin/rubocop`.
 3. Run the GitHub Actions CI matrix.
-4. Confirm `bin/rails g open_router_usage_tracker:upgrade_v2` works in a disposable host app.
-5. Review `CHANGELOG.md` for breaking changes and upgrade steps.
-6. Build the gem with `gem build open_router_usage_tracker.gemspec --output /private/tmp/open_router_usage_tracker.gem`.
-7. Tag the release only after the upgrade generator and README instructions match the shipped schema.
+4. Complete the [v2 Release Review Checklist](v2_release_review.md).
+5. Confirm `bin/rails g open_router_usage_tracker:upgrade_v2` works in a disposable host app.
+6. Review `CHANGELOG.md` for breaking changes and upgrade steps.
+7. Build the gem with `gem build open_router_usage_tracker.gemspec --output /private/tmp/open_router_usage_tracker.gem`.
+8. Tag the release only after the upgrade generator and README instructions match the shipped schema.
 
 ## Upgrade Path
 

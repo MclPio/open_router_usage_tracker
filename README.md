@@ -132,7 +132,9 @@ Cost precedence, cache/reasoning rates, and raw response retention are covered i
 ## Documentation
 
 - [Usage Guide](docs/usage.md): install, upgrade, logging, configuration, queries, and operations.
+- [Integration Examples](docs/integration_examples.md): real Rails app setup, initializers, service objects, jobs, and accepted argument types.
 - [Architecture Guide](docs/architecture.md): how the Rails engine, parsers, persistence, models, and generators fit together.
+- [v2 Release Review](docs/v2_release_review.md): repository review and manual dummy-app test checklist before publishing.
 - [Agent Operating Contract](docs/agent.md): contributor workflow for autonomous or AI-assisted work.
 - [Project Pipeline](docs/pipeline.md): historical hardening plan and milestone record.
 - [Release Guide](docs/release.md): supported matrix, version policy, and v2 release checklist.
